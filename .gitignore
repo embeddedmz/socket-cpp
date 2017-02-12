@@ -1,0 +1,12 @@
+
+
+#Windows
+.vs/*
+Socket.VC.db
+Socket.sln
+Socket/.vs/*
+Socket/ReadMe.txt
+Socket/Socket.vcxproj
+Socket/Socket.vcxproj.filters
+SocketTest/SocketTest.vcxproj
+SocketTest/SocketTest.vcxproj.filters
