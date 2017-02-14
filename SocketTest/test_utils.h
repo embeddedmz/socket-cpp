@@ -32,6 +32,9 @@
 #include <vld.h>
 #endif
 #endif
+
+#else
+#include <unistd.h>
 #endif
 
 #include "SimpleIni.h"

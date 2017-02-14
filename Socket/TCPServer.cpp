@@ -8,14 +8,17 @@
 
 
 CTCPServer::CTCPServer(LogFnCallback oLogger,
-                       const std::string& strAddr,
+                       /*const std::string& strAddr,*/
                        const std::string& strPort) throw (EResolveError) :
    ASocket(oLogger),
    m_ListenSocket(INVALID_SOCKET),
+   #ifdef WINDOWS
    m_pResultAddrInfo(nullptr),
-   m_strHost(strAddr),
+   #endif
+   //m_strHost(strAddr),
    m_strPort(strPort)
 {
+   #ifdef WINDOWS
    // Resolve the server address and port
    ZeroMemory(&m_HintsAddrInfo, sizeof(m_HintsAddrInfo));
    /* AF_INET is used to specify the IPv4 address family. */
@@ -28,7 +31,7 @@ CTCPServer::CTCPServer(LogFnCallback oLogger,
    * address structure in a call to the bind function.*/
    m_HintsAddrInfo.ai_flags = AI_PASSIVE;
 
-   int iResult = getaddrinfo(strAddr.c_str(), strPort.c_str(), &m_HintsAddrInfo, &m_pResultAddrInfo);
+   int iResult = getaddrinfo(nullptr, strPort.c_str(), &m_HintsAddrInfo, &m_pResultAddrInfo);
    if (iResult != 0)
    {
       if (m_pResultAddrInfo != nullptr)
@@ -39,6 +42,23 @@ CTCPServer::CTCPServer(LogFnCallback oLogger,
 
       throw EResolveError(StringFormat("[TCPServer][Error] getaddrinfo failed : %d", iResult));
    }
+   #else
+   // clear address structure
+   bzero((char *) &m_ServAddr, sizeof(m_ServAddr));
+
+   int iPort = atoi(strPort.c_str());
+
+   /* setup the host_addr structure for use in bind call */
+   // server byte order
+   m_ServAddr.sin_family = AF_INET;  
+
+   // automatically be filled with current host's IP address
+   m_ServAddr.sin_addr.s_addr = INADDR_ANY;
+   //m_ServAddr.sin_addr.s_addr = inet_addr(strAddr.c_str()); // doesn't work !
+
+   // convert short integer value for port must be converted into network byte order
+   m_ServAddr.sin_port = htons(iPort);
+   #endif
 }
 
 // Renvoie le socket du client autorisé à se connecter au serveur
@@ -49,6 +69,7 @@ bool CTCPServer::Listen(ASocket::Socket& ClientSocket)
    // creates a socket to listen for incoming client connections if it doesn't already exist
    if (m_ListenSocket == INVALID_SOCKET)
    {
+      #ifdef WINDOWS
       m_ListenSocket = socket(m_pResultAddrInfo->ai_family,
                               m_pResultAddrInfo->ai_socktype,
                               m_pResultAddrInfo->ai_protocol);
@@ -72,9 +93,37 @@ bool CTCPServer::Listen(ASocket::Socket& ClientSocket)
       if (iResult == SOCKET_ERROR)
       {
          m_oLog(StringFormat("[TCPServer][Error] bind failed : %d", WSAGetLastError()));
+         return false;
       }
+      #else
+
+      // create a socket
+      // socket(int domain, int type, int protocol)
+      m_ListenSocket =  socket(AF_INET, SOCK_STREAM, 0);
+      if (m_ListenSocket < 0)
+      {
+         m_oLog(StringFormat("[TCPServer][Error] opening socket : %s", strerror(errno)));
+         m_ListenSocket = INVALID_SOCKET;
+         return false;
+      }
+
+      // bind(int fd, struct sockaddr *local_addr, socklen_t addr_length)
+      // bind() passes file descriptor, the address structure, 
+      // and the length of the address structure
+      // This bind() call will bind  the socket to the current IP address on port, portno
+      int iResult = bind(m_ListenSocket,
+                         reinterpret_cast<struct sockaddr*>(&m_ServAddr),
+                         sizeof(m_ServAddr));
+      if (iResult < 0)
+      {
+         m_oLog(StringFormat("[TCPServer][Error] bind failed : %s", strerror(errno)));
+         return false;
+      }
+      #endif
    }
 
+
+   #ifdef WINDOWS
    sockaddr addrClient;
    int iResult;
    /* SOMAXCONN = allow max number of connexions in waiting */
@@ -98,7 +147,40 @@ bool CTCPServer::Listen(ASocket::Socket& ClientSocket)
    //unsigned long len2 = 256UL;
    //if (!WSAAddressToStringA(&addrClient, lenAddr, NULL, buf1, &len2))
       //m_oLog(StringFormat("[TCPServer][Info] Connection from %s", buf1));
-   
+
+   #else
+   // This listen() call tells the socket to listen to the incoming connections.
+   // The listen() function places all incoming connection into a backlog queue
+   // until accept() call accepts the connection.
+   // Here, we set the maximum size for the backlog queue to SOMAXCONN.
+   listen(m_ListenSocket, SOMAXCONN);
+
+   struct sockaddr_in ClientAddr;
+
+   // The accept() call actually accepts an incoming connection
+   socklen_t uClientLen = sizeof(ClientAddr);
+
+   // This accept() function will write the connecting client's address info 
+   // into the the address structure and the size of that structure is uClientLen.
+   // The accept() returns a new socket file descriptor for the accepted connection.
+   // So, the original socket file descriptor can continue to be used 
+   // for accepting new connections while the new socker file descriptor is used for
+   // communicating with the connected client.
+   ClientSocket = accept(m_ListenSocket,
+                         reinterpret_cast<struct sockaddr*>(&ClientAddr),
+                         &uClientLen);
+
+   if (ClientSocket < 0)
+   {
+      m_oLog(StringFormat("[TCPServer][Error] accept failed : %s", strerror(errno)));
+      return false;
+   }
+
+   // TODO : enable/disable verbose mode...
+   m_oLog(StringFormat("[TCPServer][Info] Incoming connection from '%s' port '%d'",
+      inet_ntoa(ClientAddr.sin_addr), ntohs(ClientAddr.sin_port)));
+   #endif
+
    return true;
 }
 
@@ -106,20 +188,66 @@ bool CTCPServer::Listen(ASocket::Socket& ClientSocket)
  * ret == 0  : connection closed
  * ret < 0   : recv failed
  */
-int CTCPServer::Receive(CTCPServer::Socket ClientSocket, char* pData, size_t uSize) const
+int CTCPServer::Receive(const CTCPServer::Socket ClientSocket, char* pData, const size_t uSize) const
 {
-   int iResult = recv(ClientSocket, pData, uSize, 0);
+   int iBytesRcvd;
 
-   if (iResult < 0)
+   #ifdef WINDOWS
+   iBytesRcvd = recv(ClientSocket, pData, uSize, 0);
+   if (iBytesRcvd < 0)
    {
-      m_oLog(StringFormat("[TCPClient][Error] recv failed : %d", WSAGetLastError()));
+      m_oLog(StringFormat("[TCPServer][Error] recv failed : %d", WSAGetLastError()));
    }
+   #else
+   iBytesRcvd = read(ClientSocket, pData, uSize);
+   if (iBytesRcvd < 0)
+   {
+      m_oLog(StringFormat("[TCPServer][Error] reading from socket : %s", strerror(errno)));
+   }
+   #endif
 
-   return iResult;
+   return iBytesRcvd;
 }
 
-bool CTCPServer::Disconnect(CTCPServer::Socket ClientSocket)
+bool CTCPServer::Send(const Socket ClientSocket, const char* pData, size_t uSize) const
 {
+   int iResult = 0;
+
+   #ifdef WINDOWS
+   iResult = send(ClientSocket, pData, uSize, 0);
+   if (iResult == SOCKET_ERROR)
+   {
+      m_oLog(StringFormat("[TCPServer][Error] send failed : %d", WSAGetLastError()));
+      //Disconnect();
+      return false;
+   }
+   #else
+
+   //send(ClientSocket, pData, uSize, 0);
+   iResult = write(ClientSocket, pData, uSize);
+   if (iResult < 0) 
+   {
+      m_oLog(StringFormat("[TCPServer][Error] writing to socket : %s", strerror(errno)));
+      return false;
+   }
+   #endif
+   
+   return true;
+}
+
+bool CTCPServer::Send(const Socket ClientSocket, const std::string& strData) const
+{
+   return Send(ClientSocket, strData.c_str(), strData.length());
+}
+
+bool CTCPServer::Send(const Socket ClientSocket, const std::vector<char>& Data) const
+{
+   return Send(ClientSocket, Data.data(), Data.size());
+}
+
+bool CTCPServer::Disconnect(const CTCPServer::Socket ClientSocket)
+{
+   #ifdef WINDOWS
    // The shutdown function disables sends or receives on a socket.
    int iResult = shutdown(ClientSocket, SD_RECEIVE);
    
@@ -130,14 +258,21 @@ bool CTCPServer::Disconnect(CTCPServer::Socket ClientSocket)
    }
 
    closesocket(ClientSocket);
+   #else
 
-   m_ListenSocket = INVALID_SOCKET;
-   m_pResultAddrInfo = nullptr;
+   close(ClientSocket);
+
+   #endif
 
    return true;
 }
 
 CTCPServer::~CTCPServer()
 {
-
+   #ifdef WINDOWS
+   // close listen socket
+   closesocket(m_ListenSocket);
+   #else
+   close(m_ListenSocket);
+   #endif
 }

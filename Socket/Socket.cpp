@@ -9,7 +9,10 @@
 // Static members initialization
 volatile int    ASocket::s_iSocketCount = 0;
 std::mutex      ASocket::s_mtxCount;
+
+#ifdef WINDOWS
 WSADATA         ASocket::s_wsaData;
+#endif
 
 /**
 * @brief constructor of the Socket

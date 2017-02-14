@@ -26,7 +26,7 @@ class CTCPServer : public ASocket
 {	
 public:
    explicit CTCPServer(LogFnCallback oLogger,
-                       const std::string& strAddr,
+                       /*const std::string& strAddr,*/
                        const std::string& strPort) throw (EResolveError);
    
    ~CTCPServer() override;
@@ -38,23 +38,27 @@ public:
    /* returns the socket of the accepted client */
    bool Listen(Socket& ClientSocket);
    
-   int Receive(Socket ClientSocket,
+   int Receive(const Socket ClientSocket,
                char* pData,
-               size_t uSize) const;
+               const size_t uSize) const;
+
+   bool Send(const Socket ClientSocket, const char* pData, size_t uSize) const;
+   bool Send(const Socket ClientSocket, const std::string& strData) const;
+   bool Send(const Socket ClientSocket, const std::vector<char>& Data) const;
    
-   bool Disconnect(Socket ClientSocket);
+   bool Disconnect(const Socket ClientSocket);
 
 protected:
    Socket m_ListenSocket;
 
-   std::string m_strHost;
+   //std::string m_strHost;
    std::string m_strPort;
 
    #ifdef WINDOWS
    struct addrinfo* m_pResultAddrInfo;
    struct addrinfo  m_HintsAddrInfo;
    #else
-
+   struct sockaddr_in m_ServAddr;
    #endif
 
 };

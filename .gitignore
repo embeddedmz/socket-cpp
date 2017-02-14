@@ -1,4 +1,13 @@
-
+CMakeCache.txt
+CMakeFiles/*
+Makefile
+SocketTest/CMakeCache.txt
+SocketTest/CMakeFiles/*
+SocketTest/Makefile
+SocketTest/bin/*
+SocketTest/cmake_install.cmake
+cmake_install.cmake
+lib/*
 
 #Windows
 .vs/*

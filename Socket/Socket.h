@@ -12,6 +12,7 @@
 #include <cstdio>         // snprintf
 #include <exception>
 #include <functional>
+#include <memory>
 #include <mutex>
 #include <stdarg.h>       // va_start, etc.
 #include <stdexcept>
@@ -22,6 +23,19 @@
 
 // Need to link with Ws2_32.lib
 #pragma comment(lib,"WS2_32.lib")
+
+#else
+#include <arpa/inet.h>
+#include <errno.h>
+#include <netinet/in.h>
+#include <netdb.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <string.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <unistd.h>
 #endif
 
 class ASocket
@@ -35,7 +49,8 @@ public:
    #ifdef WINDOWS
    typedef SOCKET Socket;
    #else
-
+   typedef int Socket;
+   #define INVALID_SOCKET -1
    #endif
 
    enum SettingsFlag

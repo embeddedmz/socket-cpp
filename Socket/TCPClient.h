@@ -46,9 +46,10 @@ public:
 	// Session
    bool Connect(const std::string& strServer, const std::string& strPort); // connect to a TCP server
    bool Disconnect(); // disconnect from the TCP server
-   bool SendData(const char* pData, size_t uSize) const; // send data to a TCP server
-   bool SendData(const std::string& strData) const;
-   bool SendData(const std::vector<char>& Data) const;
+   bool Send(const char* pData, size_t uSize) const; // send data to a TCP server
+   bool Send(const std::string& strData) const;
+   bool Send(const std::vector<char>& Data) const;
+   int  Receive(char* pData, size_t uSize) const;
 	
 protected:
    enum SocketStatus
@@ -66,7 +67,8 @@ protected:
    struct addrinfo* m_pResultAddrInfo;
    struct addrinfo  m_HintsAddrInfo;
    #else
-   
+   struct hostent* m_pServer;
+   struct sockaddr_in m_ServAddr;
    #endif
 
 };
