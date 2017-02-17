@@ -6,7 +6,7 @@
 
 #include "TCPClient.h"
 
-CTCPClient::CTCPClient(LogFnCallback oLogger) :
+CTCPClient::CTCPClient(const LogFnCallback oLogger) :
    ASocket(oLogger),
    m_eStatus(DISCONNECTED),
    #ifdef WINDOWS
@@ -62,6 +62,7 @@ bool CTCPClient::Connect(const std::string& strServer, const std::string& strPor
    if (m_ConnectSocket == INVALID_SOCKET)
    {
       m_oLog(StringFormat("[TCPClient][Error] socket failed : %d", WSAGetLastError()));
+      closesocket(m_ConnectSocket);
       freeaddrinfo(m_pResultAddrInfo);
       m_pResultAddrInfo = nullptr;
       return false;
@@ -137,7 +138,9 @@ bool CTCPClient::Connect(const std::string& strServer, const std::string& strPor
    
    bzero(reinterpret_cast<char *>(&m_ServAddr), sizeof(m_ServAddr));
    
-   // copy address
+   // copy server's IP address
+   //m_ServAddr.sin_addr.s_addr = inet_addr(strServer.c_str());
+   //or use :
    bcopy(reinterpret_cast<char *>(m_pServer->h_addr), // src
          reinterpret_cast<char *>(&m_ServAddr.sin_addr.s_addr), // dst
          m_pServer->h_length); // len
@@ -161,7 +164,7 @@ bool CTCPClient::Connect(const std::string& strServer, const std::string& strPor
    return false;
 }
 
-bool CTCPClient::Send(const char* pData, size_t uSize) const
+bool CTCPClient::Send(const char* pData, const size_t uSize) const
 {
    if (m_eStatus != CONNECTED)
    {
@@ -204,7 +207,7 @@ bool CTCPClient::Send(const std::vector<char>& Data) const
  * ret == 0  : connection closed
  * ret < 0   : recv failed
  */
-int CTCPClient::Receive(char* pData, size_t uSize) const
+int CTCPClient::Receive(char* pData, const size_t uSize) const
 {
    if (m_eStatus != CONNECTED)
    {

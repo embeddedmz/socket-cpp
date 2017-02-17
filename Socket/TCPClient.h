@@ -22,10 +22,14 @@
 
 #include "Socket.h"
 
+class CTCPSSLClient;
+
 class CTCPClient : public ASocket
 {
+   friend class CTCPSSLClient;
+
 public:
-   explicit CTCPClient(LogFnCallback oLogger);
+   explicit CTCPClient(const LogFnCallback oLogger);
    ~CTCPClient() override;
 
    // copy constructor and assignment operator are disabled
@@ -46,10 +50,10 @@ public:
 	// Session
    bool Connect(const std::string& strServer, const std::string& strPort); // connect to a TCP server
    bool Disconnect(); // disconnect from the TCP server
-   bool Send(const char* pData, size_t uSize) const; // send data to a TCP server
+   bool Send(const char* pData, const size_t uSize) const; // send data to a TCP server
    bool Send(const std::string& strData) const;
    bool Send(const std::vector<char>& Data) const;
-   int  Receive(char* pData, size_t uSize) const;
+   int  Receive(char* pData, const size_t uSize) const;
 	
 protected:
    enum SocketStatus

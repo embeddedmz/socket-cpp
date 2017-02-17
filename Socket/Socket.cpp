@@ -20,14 +20,14 @@ WSADATA         ASocket::s_wsaData;
 * @param Logger - a callabck to a logger function void(const std::string&)
 *
 */
-ASocket::ASocket(LogFnCallback oLogger) :
+ASocket::ASocket(const LogFnCallback& oLogger) :
    m_oLog(oLogger)
 {
    s_mtxCount.lock();
    if (s_iSocketCount++ == 0)
    {
+      // In windows, this will init the winsock DLL stuff
 #ifdef WINDOWS
-      /* In windows, this will init the winsock stuff */
       int iWinSockInitResult = WSAStartup(MAKEWORD(2, 2), &s_wsaData);
       
       // MAKEWORD(2,2) version 2.2 of Winsock

@@ -57,13 +57,12 @@ public:
    {
       NO_FLAGS = 0x00,
       ENABLE_LOG = 0x01,
-      // ENABLE_SSL = 0x02,  // OpenSSL
       ALL_FLAGS = 0xFF
    };
 
    /* Please provide your logger thread-safe routine, otherwise, you can turn off
    * error log messages printing by not using the flag ALL_FLAGS or ENABLE_LOG */
-   explicit ASocket(LogFnCallback oLogger);
+   explicit ASocket(const LogFnCallback& oLogger);
    virtual ~ASocket() = 0;
 
    inline static int GetSocketCount() { return s_iSocketCount; }
@@ -73,15 +72,15 @@ protected:
    static std::string StringFormat(const std::string strFormat, ...);
 
    // Log printer callback
-   /*mutable*/ LogFnCallback         m_oLog;
-
-   volatile static int   s_iSocketCount;  // Count of the actual socket sessions
-   static std::mutex     s_mtxCount;      // mutex used to sync API global operations
+   /*mutable*/const LogFnCallback         m_oLog;
 
    #ifdef WINDOWS
    static WSADATA s_wsaData;
    #endif
 
+private:
+   volatile static int   s_iSocketCount;  // Count of the actual socket sessions
+   static std::mutex     s_mtxCount;      // mutex used to sync API global operations
 };
 
 class EResolveError : public std::logic_error

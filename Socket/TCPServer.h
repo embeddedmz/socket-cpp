@@ -25,7 +25,7 @@
 class CTCPServer : public ASocket
 {	
 public:
-   explicit CTCPServer(LogFnCallback oLogger,
+   explicit CTCPServer(const LogFnCallback oLogger,
                        /*const std::string& strAddr,*/
                        const std::string& strPort) throw (EResolveError);
    
@@ -42,11 +42,11 @@ public:
                char* pData,
                const size_t uSize) const;
 
-   bool Send(const Socket ClientSocket, const char* pData, size_t uSize) const;
+   bool Send(const Socket ClientSocket, const char* pData, const size_t uSize) const;
    bool Send(const Socket ClientSocket, const std::string& strData) const;
    bool Send(const Socket ClientSocket, const std::vector<char>& Data) const;
    
-   bool Disconnect(const Socket ClientSocket);
+   bool Disconnect(const Socket ClientSocket) const;
 
 protected:
    Socket m_ListenSocket;

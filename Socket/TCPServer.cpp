@@ -7,7 +7,7 @@
 #include "TCPServer.h"
 
 
-CTCPServer::CTCPServer(LogFnCallback oLogger,
+CTCPServer::CTCPServer(const LogFnCallback oLogger,
                        /*const std::string& strAddr,*/
                        const std::string& strPort) throw (EResolveError) :
    ASocket(oLogger),
@@ -61,7 +61,7 @@ CTCPServer::CTCPServer(LogFnCallback oLogger,
    #endif
 }
 
-// Renvoie le socket du client autorisé à se connecter au serveur
+// returns the socket of the accepted client
 bool CTCPServer::Listen(ASocket::Socket& ClientSocket)
 {
    ClientSocket = INVALID_SOCKET;
@@ -93,13 +93,15 @@ bool CTCPServer::Listen(ASocket::Socket& ClientSocket)
       if (iResult == SOCKET_ERROR)
       {
          m_oLog(StringFormat("[TCPServer][Error] bind failed : %d", WSAGetLastError()));
+         closesocket(m_ListenSocket);
+         m_ListenSocket = INVALID_SOCKET;
          return false;
       }
       #else
 
       // create a socket
       // socket(int domain, int type, int protocol)
-      m_ListenSocket =  socket(AF_INET, SOCK_STREAM, 0);
+      m_ListenSocket =  socket(AF_INET, SOCK_STREAM, 0/*IPPROTO_TCP*/);
       if (m_ListenSocket < 0)
       {
          m_oLog(StringFormat("[TCPServer][Error] opening socket : %s", strerror(errno)));
@@ -131,6 +133,8 @@ bool CTCPServer::Listen(ASocket::Socket& ClientSocket)
    if (iResult == SOCKET_ERROR)
    {
       m_oLog(StringFormat("[TCPServer][Error] listen failed : %d", WSAGetLastError()));
+      closesocket(m_ListenSocket);
+      m_ListenSocket = INVALID_SOCKET;
       return false;
    }
 
@@ -142,7 +146,16 @@ bool CTCPServer::Listen(ASocket::Socket& ClientSocket)
       m_oLog(StringFormat("[TCPServer][Error] accept failed : %d", WSAGetLastError()));
       return false;
    }
-   
+
+   {
+      // TODO : enable/disable verbose mode... + a version that handles IPv6
+      m_oLog( StringFormat("[TCPServer][Info] Incoming connection from '%s' port '%d'",
+              (addrClient.sa_family == AF_INET) ? inet_ntoa(((struct sockaddr_in*)&addrClient)->sin_addr) : "",
+              (addrClient.sa_family == AF_INET) ? ntohs(((struct sockaddr_in*)&addrClient)->sin_port) : 0
+                          )
+            );
+   }
+
    //char buf1[256];
    //unsigned long len2 = 256UL;
    //if (!WSAAddressToStringA(&addrClient, lenAddr, NULL, buf1, &len2))
@@ -153,10 +166,14 @@ bool CTCPServer::Listen(ASocket::Socket& ClientSocket)
    // The listen() function places all incoming connection into a backlog queue
    // until accept() call accepts the connection.
    // Here, we set the maximum size for the backlog queue to SOMAXCONN.
-   listen(m_ListenSocket, SOMAXCONN);
+   int iResult = listen(m_ListenSocket, SOMAXCONN);
+   if (iResult < 0)
+   {
+      m_oLog(StringFormat("[TCPServer][Error] listen failed : %s", strerror(errno)));
+      return false;
+   }
 
    struct sockaddr_in ClientAddr;
-
    // The accept() call actually accepts an incoming connection
    socklen_t uClientLen = sizeof(ClientAddr);
 
@@ -245,7 +262,7 @@ bool CTCPServer::Send(const Socket ClientSocket, const std::vector<char>& Data) 
    return Send(ClientSocket, Data.data(), Data.size());
 }
 
-bool CTCPServer::Disconnect(const CTCPServer::Socket ClientSocket)
+bool CTCPServer::Disconnect(const CTCPServer::Socket ClientSocket) const
 {
    #ifdef WINDOWS
    // The shutdown function disables sends or receives on a socket.
