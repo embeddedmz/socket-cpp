@@ -74,6 +74,7 @@ bool CTCPSSLClient::Connect(const std::string& strServer, const std::string& str
             return false;
          }*/
       }
+      SSL_CTX_set_cert_verify_callback(m_SSLConnectSocket.m_pCTXSSL, AlwaysTrueCallback, nullptr);
 
       /* create new SSL connection state */
       m_SSLConnectSocket.m_pSSL = SSL_new(m_SSLConnectSocket.m_pCTXSSL);

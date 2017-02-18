@@ -84,6 +84,7 @@ protected:
    // class methods
    static void ShutdownSSL(SSLSocket& SSLSocket);
    static const char* GetSSLErrorString(int iErrorCode);
+   static int AlwaysTrueCallback(X509_STORE_CTX* pCTX, void* pArg);
 
    // non-static/object members
    OpenSSLProtocol      m_eOpenSSLProtocol;

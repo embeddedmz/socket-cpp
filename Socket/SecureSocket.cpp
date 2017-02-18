@@ -188,4 +188,9 @@ const char* ASecureSocket::GetSSLErrorString(int iErrorCode)
       break;
    }
 }
+
+int ASecureSocket::AlwaysTrueCallback(X509_STORE_CTX* pCTX, void* pArg)
+{
+   return 1;
+}
 #endif

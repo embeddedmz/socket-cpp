@@ -32,6 +32,7 @@ bool CTCPSSLServer::Listen(SSLSocket& ClientSocket)
       }
 
       //SSL_CTX_set_options(ClientSocket.m_pCTXSSL, SSL_OP_SINGLE_DH_USE);
+      SSL_CTX_set_cert_verify_callback(ClientSocket.m_pCTXSSL, AlwaysTrueCallback, nullptr);
 
       /* Load server certificate into the SSL context. */
       if (!m_strSSLCertFile.empty())
@@ -90,7 +91,7 @@ bool CTCPSSLServer::Listen(SSLSocket& ClientSocket)
                              iSSLErr, GetSSLErrorString(SSL_get_error(ClientSocket.m_pSSL, iSSLErr))));
 
          //if (iSSLErr < 0)
-            //ERR_print_errors_fp(stdout);
+            ERR_print_errors_fp(stderr);
 
          ShutdownSSL(ClientSocket);
 
