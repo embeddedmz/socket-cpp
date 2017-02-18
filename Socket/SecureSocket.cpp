@@ -24,8 +24,10 @@ std::mutex      ASecureSocket::s_mtxSecureCount;
 * @param eSSLVersion - SSL/TLS protocol version
 *
 */
-ASecureSocket::ASecureSocket(const LogFnCallback& oLogger, const OpenSSLProtocol eSSLVersion) :
-   ASocket(oLogger),
+ASecureSocket::ASecureSocket(const LogFnCallback& oLogger,
+                             const OpenSSLProtocol eSSLVersion,
+                             const SettingsFlag eSettings /*= ALL_FLAGS*/) :
+   ASocket(oLogger, eSettings),
    m_eOpenSSLProtocol(eSSLVersion)
 {
    s_mtxSecureCount.lock();

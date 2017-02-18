@@ -62,7 +62,8 @@ public:
 
    /* Please provide your logger thread-safe routine, otherwise, you can turn off
    * error log messages printing by not using the flag ALL_FLAGS or ENABLE_LOG */
-   explicit ASocket(const LogFnCallback& oLogger);
+   explicit ASocket(const LogFnCallback& oLogger,
+                    const SettingsFlag eSettings = ALL_FLAGS);
    virtual ~ASocket() = 0;
 
    inline static int GetSocketCount() { return s_iSocketCount; }
@@ -73,6 +74,8 @@ protected:
 
    // Log printer callback
    /*mutable*/const LogFnCallback         m_oLog;
+
+   SettingsFlag         m_eSettingsFlags;
 
    #ifdef WINDOWS
    static WSADATA s_wsaData;

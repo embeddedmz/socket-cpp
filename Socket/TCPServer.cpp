@@ -9,8 +9,10 @@
 
 CTCPServer::CTCPServer(const LogFnCallback oLogger,
                        /*const std::string& strAddr,*/
-                       const std::string& strPort) throw (EResolveError) :
-   ASocket(oLogger),
+                       const std::string& strPort,
+                       const SettingsFlag eSettings /*= ALL_FLAGS*/)
+                       throw (EResolveError) :
+   ASocket(oLogger, eSettings),
    m_ListenSocket(INVALID_SOCKET),
    #ifdef WINDOWS
    m_pResultAddrInfo(nullptr),
@@ -76,7 +78,8 @@ bool CTCPServer::Listen(ASocket::Socket& ClientSocket)
       
       if (m_ListenSocket == INVALID_SOCKET)
       {
-         m_oLog(StringFormat("[TCPServer][Error] socket failed : %d", WSAGetLastError()));
+         if (m_eSettingsFlags & ENABLE_LOG)
+            m_oLog(StringFormat("[TCPServer][Error] socket failed : %d", WSAGetLastError()));
          freeaddrinfo(m_pResultAddrInfo);
          m_pResultAddrInfo = nullptr;
          return false;
@@ -92,7 +95,8 @@ bool CTCPServer::Listen(ASocket::Socket& ClientSocket)
 
       if (iResult == SOCKET_ERROR)
       {
-         m_oLog(StringFormat("[TCPServer][Error] bind failed : %d", WSAGetLastError()));
+         if (m_eSettingsFlags & ENABLE_LOG)
+            m_oLog(StringFormat("[TCPServer][Error] bind failed : %d", WSAGetLastError()));
          closesocket(m_ListenSocket);
          m_ListenSocket = INVALID_SOCKET;
          return false;
@@ -104,7 +108,8 @@ bool CTCPServer::Listen(ASocket::Socket& ClientSocket)
       m_ListenSocket =  socket(AF_INET, SOCK_STREAM, 0/*IPPROTO_TCP*/);
       if (m_ListenSocket < 0)
       {
-         m_oLog(StringFormat("[TCPServer][Error] opening socket : %s", strerror(errno)));
+         if (m_eSettingsFlags & ENABLE_LOG)
+            m_oLog(StringFormat("[TCPServer][Error] opening socket : %s", strerror(errno)));
          m_ListenSocket = INVALID_SOCKET;
          return false;
       }
@@ -118,7 +123,8 @@ bool CTCPServer::Listen(ASocket::Socket& ClientSocket)
                          sizeof(m_ServAddr));
       if (iResult < 0)
       {
-         m_oLog(StringFormat("[TCPServer][Error] bind failed : %s", strerror(errno)));
+         if (m_eSettingsFlags & ENABLE_LOG)
+            m_oLog(StringFormat("[TCPServer][Error] bind failed : %s", strerror(errno)));
          return false;
       }
       #endif
@@ -132,7 +138,8 @@ bool CTCPServer::Listen(ASocket::Socket& ClientSocket)
    iResult = listen(m_ListenSocket, SOMAXCONN);
    if (iResult == SOCKET_ERROR)
    {
-      m_oLog(StringFormat("[TCPServer][Error] listen failed : %d", WSAGetLastError()));
+      if (m_eSettingsFlags & ENABLE_LOG)
+         m_oLog(StringFormat("[TCPServer][Error] listen failed : %d", WSAGetLastError()));
       closesocket(m_ListenSocket);
       m_ListenSocket = INVALID_SOCKET;
       return false;
@@ -143,23 +150,25 @@ bool CTCPServer::Listen(ASocket::Socket& ClientSocket)
    ClientSocket = accept(m_ListenSocket, &addrClient, &iAddrLen);
    if (ClientSocket == INVALID_SOCKET)
    {
-      m_oLog(StringFormat("[TCPServer][Error] accept failed : %d", WSAGetLastError()));
+      if (m_eSettingsFlags & ENABLE_LOG)
+         m_oLog(StringFormat("[TCPServer][Error] accept failed : %d", WSAGetLastError()));
+
       return false;
    }
 
    {
-      // TODO : enable/disable verbose mode... + a version that handles IPv6
-      m_oLog( StringFormat("[TCPServer][Info] Incoming connection from '%s' port '%d'",
+      if (m_eSettingsFlags & ENABLE_LOG)
+         // TODO : a version that handles IPv6
+         m_oLog( StringFormat("[TCPServer][Info] Incoming connection from '%s' port '%d'",
               (addrClient.sa_family == AF_INET) ? inet_ntoa(((struct sockaddr_in*)&addrClient)->sin_addr) : "",
-              (addrClient.sa_family == AF_INET) ? ntohs(((struct sockaddr_in*)&addrClient)->sin_port) : 0
-                          )
-            );
+              (addrClient.sa_family == AF_INET) ? ntohs(((struct sockaddr_in*)&addrClient)->sin_port) : 0));
    }
 
    //char buf1[256];
    //unsigned long len2 = 256UL;
    //if (!WSAAddressToStringA(&addrClient, lenAddr, NULL, buf1, &len2))
-      //m_oLog(StringFormat("[TCPServer][Info] Connection from %s", buf1));
+      //if (m_eSettingsFlags & ENABLE_LOG)
+         //m_oLog(StringFormat("[TCPServer][Info] Connection from %s", buf1));
 
    #else
    // This listen() call tells the socket to listen to the incoming connections.
@@ -169,7 +178,9 @@ bool CTCPServer::Listen(ASocket::Socket& ClientSocket)
    int iResult = listen(m_ListenSocket, SOMAXCONN);
    if (iResult < 0)
    {
-      m_oLog(StringFormat("[TCPServer][Error] listen failed : %s", strerror(errno)));
+      if (m_eSettingsFlags & ENABLE_LOG)
+         m_oLog(StringFormat("[TCPServer][Error] listen failed : %s", strerror(errno)));
+
       return false;
    }
 
@@ -189,13 +200,15 @@ bool CTCPServer::Listen(ASocket::Socket& ClientSocket)
 
    if (ClientSocket < 0)
    {
-      m_oLog(StringFormat("[TCPServer][Error] accept failed : %s", strerror(errno)));
+      if (m_eSettingsFlags & ENABLE_LOG)
+         m_oLog(StringFormat("[TCPServer][Error] accept failed : %s", strerror(errno)));
+
       return false;
    }
 
-   // TODO : enable/disable verbose mode...
-   m_oLog(StringFormat("[TCPServer][Info] Incoming connection from '%s' port '%d'",
-      inet_ntoa(ClientAddr.sin_addr), ntohs(ClientAddr.sin_port)));
+   if (m_eSettingsFlags & ENABLE_LOG)
+      m_oLog(StringFormat("[TCPServer][Info] Incoming connection from '%s' port '%d'",
+             inet_ntoa(ClientAddr.sin_addr), ntohs(ClientAddr.sin_port)));
    #endif
 
    return true;
@@ -213,13 +226,15 @@ int CTCPServer::Receive(const CTCPServer::Socket ClientSocket, char* pData, cons
    iBytesRcvd = recv(ClientSocket, pData, uSize, 0);
    if (iBytesRcvd < 0)
    {
-      m_oLog(StringFormat("[TCPServer][Error] recv failed : %d", WSAGetLastError()));
+      if (m_eSettingsFlags & ENABLE_LOG)
+         m_oLog(StringFormat("[TCPServer][Error] recv failed : %d", WSAGetLastError()));
    }
    #else
    iBytesRcvd = read(ClientSocket, pData, uSize);
    if (iBytesRcvd < 0)
    {
-      m_oLog(StringFormat("[TCPServer][Error] reading from socket : %s", strerror(errno)));
+      if (m_eSettingsFlags & ENABLE_LOG)
+         m_oLog(StringFormat("[TCPServer][Error] reading from socket : %s", strerror(errno)));
    }
    #endif
 
@@ -234,7 +249,8 @@ bool CTCPServer::Send(const Socket ClientSocket, const char* pData, size_t uSize
    iResult = send(ClientSocket, pData, uSize, 0);
    if (iResult == SOCKET_ERROR)
    {
-      m_oLog(StringFormat("[TCPServer][Error] send failed : %d", WSAGetLastError()));
+      if (m_eSettingsFlags & ENABLE_LOG)
+         m_oLog(StringFormat("[TCPServer][Error] send failed : %d", WSAGetLastError()));
       //Disconnect();
       return false;
    }
@@ -244,7 +260,9 @@ bool CTCPServer::Send(const Socket ClientSocket, const char* pData, size_t uSize
    iResult = write(ClientSocket, pData, uSize);
    if (iResult < 0) 
    {
-      m_oLog(StringFormat("[TCPServer][Error] writing to socket : %s", strerror(errno)));
+      if (m_eSettingsFlags & ENABLE_LOG)
+         m_oLog(StringFormat("[TCPServer][Error] writing to socket : %s", strerror(errno)));
+
       return false;
    }
    #endif
@@ -270,7 +288,9 @@ bool CTCPServer::Disconnect(const CTCPServer::Socket ClientSocket) const
    
    if (iResult == SOCKET_ERROR)
    {
-      m_oLog(StringFormat("[TCPServer][Error] shutdown failed : %d", WSAGetLastError()));
+      if (m_eSettingsFlags & ENABLE_LOG)
+         m_oLog(StringFormat("[TCPServer][Error] shutdown failed : %d", WSAGetLastError()));
+
       return false;
    }
 

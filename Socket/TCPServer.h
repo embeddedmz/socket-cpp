@@ -27,7 +27,9 @@ class CTCPServer : public ASocket
 public:
    explicit CTCPServer(const LogFnCallback oLogger,
                        /*const std::string& strAddr,*/
-                       const std::string& strPort) throw (EResolveError);
+                       const std::string& strPort,
+                       const SettingsFlag eSettings = ALL_FLAGS)
+                       throw (EResolveError);
    
    ~CTCPServer() override;
 

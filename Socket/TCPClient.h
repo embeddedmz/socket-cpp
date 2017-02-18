@@ -29,7 +29,7 @@ class CTCPClient : public ASocket
    friend class CTCPSSLClient;
 
 public:
-   explicit CTCPClient(const LogFnCallback oLogger);
+   explicit CTCPClient(const LogFnCallback oLogger, const SettingsFlag eSettings = ALL_FLAGS);
    ~CTCPClient() override;
 
    // copy constructor and assignment operator are disabled

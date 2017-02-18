@@ -51,7 +51,8 @@ public:
    /* Please provide your logger thread-safe routine, otherwise, you can turn off
    * error log messages printing by not using the flag ALL_FLAGS or ENABLE_LOG */
    explicit ASecureSocket(const LogFnCallback& oLogger,
-                          const OpenSSLProtocol eSSLVersion = OpenSSLProtocol::SSL_V23);
+                          const OpenSSLProtocol eSSLVersion = OpenSSLProtocol::SSL_V23,
+                          const SettingsFlag eSettings = ALL_FLAGS);
    virtual ~ASecureSocket() = 0;
 
    inline static int GetSSLSocketCount() { return s_iSecureSocketCount; }

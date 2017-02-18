@@ -4,10 +4,12 @@
 
 ## About
 This is a simple TCP server/client for C++. Under Windows, it wraps WinSock and under Linux it wraps 
-the related socket API (BSD compatible).
-It is meant to be a portable and easy-to-use API to create a TCP server or client.
+the related socket API (BSD compatible). It wraps also OpenSSL to create secure client/server sockets.
 
-Upcoming features : creating secure sockets with OpenSSL and using the sockets in an async way.
+It is meant to be a portable and easy-to-use API to create a TCP server or client with or without SSL/TLS
+support.
+
+Upcoming features : using the sockets in an async way and proxy support.
 
 Compilation has been tested with:
 - GCC 5.4.0 (GNU/Linux Ubuntu 16.04 LTS)
@@ -59,17 +61,37 @@ cmake . -DCMAKE_BUILD_TYPE=Debug     # or Release
 make
 ```
 
-To run it :
+To run it, you must indicate the path of the INI conf file (see the section below)
 ```Shell
-./bin/[BUILD_TYPE]/test_socket
+./bin/[BUILD_TYPE]/test_socket /path_to_your_ini_file/conf.ini
 ```
+
+Compile both the library and test program with the macro OPENSSL to use the SSL/TLS secured classes.
 
 ## Run Unit Tests
 
-You can generate an XML file of test results by adding this argument when calling the test program
+[simpleini](https://github.com/brofield/simpleini) is used to gather unit tests parameters from
+an INI configuration file. You need to fill that file with some parameters.
+You can also disable some tests (HTTP proxy for instance) and indicate
+parameters only for the enabled tests. A template of the INI file already exists under TestHTTP/
+
+e.g. to enable SSL/TLS tests :
+
+```ini
+[tests]
+tcp-ssl=yes
+
+[tcp-ssl]
+server_port=4242
+ca_file=CAfile.pem
+ssl_cert_file=site.cert
+ssl_key_file=privkey.pem
+```
+
+You can also generate an XML file of test results by adding this argument when calling the test program
 
 ```Shell
-./bin/[BUILD_TYPE]/test_socket --gtest_output="xml:./TestSocket.xml"
+./bin/[BUILD_TYPE]/test_socket /path_to_your_ini_file/conf.ini --gtest_output="xml:./TestSocket.xml"
 ```
 
 ## Memory Leak Check
@@ -80,7 +102,7 @@ You can download it here: https://vld.codeplex.com/
 To perform a leak check with the Linux build, you can do so :
 
 ```Shell
-valgrind --leak-check=full ./bin/Debug/test_socket
+valgrind --leak-check=full ./bin/Debug/test_socket /path_to_ini_file/conf.ini
 ```
 
 ## Code Coverage
@@ -88,6 +110,10 @@ valgrind --leak-check=full ./bin/Debug/test_socket
 The code coverage build doesn't use the static library but compiles and uses directly the 
 socket API in the test program.
 
+First of all, in TestHTTP/CMakeLists.txt, find and repalce :
+```
+"/home/amzoughi/Test/http_github.ini"
+```
 by the location of your ini file and launch the code coverage :
 
 ```Shell

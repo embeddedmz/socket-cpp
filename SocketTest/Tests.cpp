@@ -9,7 +9,22 @@
 
 #define PRINT_LOG [](const std::string& strLogMsg) { std::cout << strLogMsg << std::endl;  }
 
-//extern std::mutex g_mtxConsoleMutex;
+// Test parameters
+extern bool TCP_TEST_ENABLED;
+extern bool SECURE_TCP_TEST_ENABLED;
+extern bool HTTP_PROXY_TEST_ENABLED;
+
+extern std::string TCP_SERVER_PORT;
+extern std::string SECURE_TCP_SERVER_PORT;
+
+extern std::string CERT_AUTH_FILE;
+extern std::string SSL_CERT_FILE;
+extern std::string SSL_KEY_FILE;
+
+extern std::string PROXY_SERVER;
+extern std::string PROXY_SERVER_FAKE;
+
+extern std::mutex g_mtxConsoleMutex;
 
 namespace
 {
@@ -135,65 +150,70 @@ TEST_F(TCPTest, TestClient)
 
 TEST_F(TCPTest, TestLoopback)
 {
-   const std::string strSendData = "Hello World !";
-   char szRcvBuffer[14] = {};
-   ASocket::Socket ConnectedClient;
-
-   ASSERT_NO_THROW(m_pTCPServer.reset(new CTCPServer(PRINT_LOG, "6669")));
-
-   #ifdef WINDOWS
-   std::future<bool> futListen = std::async([&] { return m_pTCPServer->Listen(ConnectedClient); });
-   #else
-   auto ListenTask = [&] { return m_pTCPServer->Listen(ConnectedClient); };
-   std::thread ListenThread(ListenTask);
-   #endif
-
-   // client side
-   // send period between 50 and 999 ms
-   srand(static_cast<unsigned>(time(nullptr)));
-   unsigned iPeriod = 50 + (rand() % (999 - 50));
- 
-   // give time to let the server object reach the accept instruction.
-   #ifdef LINUX
-   usleep(500000);
-   #else
-   Sleep(500);
-   #endif
-
-   ASSERT_TRUE(m_pTCPClient->Connect("localhost", "6669"));
-   #ifdef WINDOWS
-   ASSERT_TRUE(futListen.get());
-   #else
-   ListenThread.join();
-   #endif
-   ASSERT_FALSE(ConnectedClient == INVALID_SOCKET);
-
-   // perform 3 checks
-   unsigned uCount = 0;
-   while (uCount++ < 3)
+   if (TCP_TEST_ENABLED)
    {
-      // server -> client
-      EXPECT_TRUE(m_pTCPServer->Send(ConnectedClient, strSendData));
-      EXPECT_GT(m_pTCPClient->Receive(szRcvBuffer, 13), 0);
-      EXPECT_EQ(strSendData, szRcvBuffer);
-      memset(szRcvBuffer, '\0', 14);
+      const std::string strSendData = "Hello World !";
+      char szRcvBuffer[14] = {};
+      ASocket::Socket ConnectedClient;
 
-      // client -> server
-      EXPECT_TRUE(m_pTCPClient->Send(strSendData));
-      EXPECT_GT(m_pTCPServer->Receive(ConnectedClient, szRcvBuffer, 13), 0);
-      EXPECT_EQ(strSendData, szRcvBuffer);
-      memset(szRcvBuffer, '\0', 14);
-      
-      #ifdef LINUX
-      usleep(iPeriod*1000);
+      ASSERT_NO_THROW(m_pTCPServer.reset(new CTCPServer(PRINT_LOG, TCP_SERVER_PORT)));
+
+      #ifdef WINDOWS
+      std::future<bool> futListen = std::async([&] { return m_pTCPServer->Listen(ConnectedClient); });
       #else
-      Sleep(iPeriod);
+      auto ListenTask = [&] { return m_pTCPServer->Listen(ConnectedClient); };
+      std::thread ListenThread(ListenTask);
       #endif
-   }
 
-   // disconnect
-   EXPECT_TRUE(m_pTCPClient->Disconnect());
-   //EXPECT_TRUE(m_pTCPServer->Disconnect(ConnectedClient)); // OK tested
+      // client side
+      // send period between 50 and 999 ms
+      srand(static_cast<unsigned>(time(nullptr)));
+      unsigned iPeriod = 50 + (rand() % (999 - 50));
+ 
+      // give time to let the server object reach the accept instruction.
+      #ifdef LINUX
+      usleep(500000);
+      #else
+      Sleep(500);
+      #endif
+
+      ASSERT_TRUE(m_pTCPClient->Connect("localhost", "6669"));
+      #ifdef WINDOWS
+      ASSERT_TRUE(futListen.get());
+      #else
+      ListenThread.join();
+      #endif
+      ASSERT_FALSE(ConnectedClient == INVALID_SOCKET);
+
+      // perform 3 checks
+      unsigned uCount = 0;
+      while (uCount++ < 3)
+      {
+         // server -> client
+         EXPECT_TRUE(m_pTCPServer->Send(ConnectedClient, strSendData));
+         EXPECT_GT(m_pTCPClient->Receive(szRcvBuffer, 13), 0);
+         EXPECT_EQ(strSendData, szRcvBuffer);
+         memset(szRcvBuffer, '\0', 14);
+
+         // client -> server
+         EXPECT_TRUE(m_pTCPClient->Send(strSendData));
+         EXPECT_GT(m_pTCPServer->Receive(ConnectedClient, szRcvBuffer, 13), 0);
+         EXPECT_EQ(strSendData, szRcvBuffer);
+         memset(szRcvBuffer, '\0', 14);
+      
+         #ifdef LINUX
+         usleep(iPeriod*1000);
+         #else
+         Sleep(iPeriod);
+         #endif
+      }
+
+      // disconnect
+      EXPECT_TRUE(m_pTCPClient->Disconnect());
+      //EXPECT_TRUE(m_pTCPServer->Disconnect(ConnectedClient)); // OK tested
+   }
+   else
+      std::cout << "TCP tests are disabled !" << std::endl;
 }
 
 #ifdef OPENSSL
@@ -225,95 +245,98 @@ TEST_F(SSLTCPTest, TestServer)
 
 TEST_F(SSLTCPTest, TestLoopback)
 {
-   const std::string strSendData = "Hello World !";
-   char szRcvBuffer[14] = {};
-   ASecureSocket::SSLSocket ConnectedClient;
-
-   ASSERT_NO_THROW(m_pSSLTCPServer.reset(new CTCPSSLServer(PRINT_LOG, "4242")));
-
-   m_pSSLTCPServer->SetSSLCertFile("site.cert");
-   m_pSSLTCPServer->SetSSLCerthAuth("CAfile.pem");
-   m_pSSLTCPServer->SetSSLKeyFile("privkey.pem");
-
-   #ifdef WINDOWS
-   std::future<bool> futListen = std::async([&]() -> bool
+   if (TCP_TEST_ENABLED)
    {
-      // give time to let the server object reach the accept instruction.
-      #ifdef LINUX
-      //for (int iSec = 0; iSec < 5000; ++iSec)
-         //usleep(1000);
-      #else
-      for (int iSec = 0; iSec < 5; ++iSec)
-         Sleep(1000);
-      #endif
+      const std::string strSendData = "Hello World !";
+      char szRcvBuffer[14] = {};
+      ASecureSocket::SSLSocket ConnectedClient;
 
-      //m_pSSLTCPClient->SetSSLCerthAuth("C:\\TestOpenSSL\\CAfile.pem");
-      return m_pSSLTCPClient->Connect("localhost", "4242");
-   });
-   #else
-   auto ConnectTask = [&]() -> bool 
-   {
-      // give time to let the server object reach the accept instruction.
-      #ifdef LINUX
-      std::cout << "** Connect task : delay\n";
-      for (int iSec = 0; iSec < 5000; ++iSec)
-         usleep(1000);
-      #else
-      for (int iSec = 0; iSec < 5; ++iSec)
-         Sleep(1000);
-      #endif
-      std::cout << "** Connect task : begin connect\n";
-      m_pSSLTCPClient->SetSSLCerthAuth("CAfile.pem");
-      m_pSSLTCPClient->SetSSLKeyFile("privkey.pem");
-      bool bRet = m_pSSLTCPClient->Connect("localhost", "4242");
-      std::cout << "** Connect task : end connect\n";
-      return bRet;
-   };
-   std::thread ConnectThread(ConnectTask);
-   #endif
+      ASSERT_NO_THROW(m_pSSLTCPServer.reset(new CTCPSSLServer(PRINT_LOG, SECURE_TCP_SERVER_PORT)));
 
-   m_pSSLTCPServer->Listen(ConnectedClient);
+      m_pSSLTCPServer->SetSSLCertFile(SSL_CERT_FILE);
+      m_pSSLTCPServer->SetSSLKeyFile(SSL_KEY_FILE);
+      //m_pSSLTCPServer->SetSSLCerthAuth(CERT_AUTH_FILE); // not mandatory
 
-   #ifdef WINDOWS
-   ASSERT_TRUE(futListen.get());
-   #else
-   ConnectThread.join();
-   #endif
+#ifdef WINDOWS
+      std::future<bool> futListen = std::async([&]() -> bool
+      {
+         // give time to let the server object reach the accept instruction.
+         for (int iSec = 0; iSec < 1; ++iSec)
+            Sleep(1000);
 
-   ASSERT_FALSE(ConnectedClient.m_pSSL == nullptr);
-   ASSERT_FALSE(ConnectedClient.m_pCTXSSL == nullptr);
-   ASSERT_FALSE(ConnectedClient.m_SockFd == INVALID_SOCKET);
+         //m_pSSLTCPClient->SetSSLCerthAuth(CERT_AUTH_FILE); // not mandatory
+         //m_pSSLTCPClient->SetSSLKeyFile(SSL_KEY_FILE); // not mandatory
+         return m_pSSLTCPClient->Connect("localhost", SECURE_TCP_SERVER_PORT);
+      });
+#else
+      auto ConnectTask = [&]() -> bool
+      {
+         // give time to let the server object reach the accept instruction.
+#ifdef LINUX
+         std::cout << "** Connect task : delay\n";
+         for (int iSec = 0; iSec < 2000; ++iSec)
+            usleep(1000);
+#else
+         for (int iSec = 0; iSec < 2; ++iSec)
+            Sleep(1000);
+#endif
+         std::cout << "** Connect task : begin connect\n";
 
-   // perform 3 checks
-   // client side
-   // send period between 50 and 999 ms
-   srand(static_cast<unsigned>(time(nullptr)));
-   unsigned iPeriod = 50 + (rand() % (999 - 50));
-   unsigned uCount = 0;
-   while (uCount++ < 3)
-   {
-      // server -> client
-      EXPECT_TRUE(m_pSSLTCPServer->Send(ConnectedClient, strSendData));
-      EXPECT_GT(m_pSSLTCPClient->Receive(szRcvBuffer, 13), 0);
-      EXPECT_EQ(strSendData, szRcvBuffer);
-      memset(szRcvBuffer, '\0', 14);
+         //m_pSSLTCPClient->SetSSLKeyFile(SSL_KEY_FILE); // not mandatory
+         //m_pSSLTCPClient->SetSSLCerthAuth(CERT_AUTH_FILE); // not mandatory
 
-      // client -> server
-      EXPECT_TRUE(m_pSSLTCPClient->Send(strSendData));
-      EXPECT_GT(m_pSSLTCPServer->Receive(ConnectedClient, szRcvBuffer, 13), 0);
-      EXPECT_EQ(strSendData, szRcvBuffer);
-      memset(szRcvBuffer, '\0', 14);
+         bool bRet = m_pSSLTCPClient->Connect("localhost", "4242");
+         std::cout << "** Connect task : end connect\n";
+         return bRet;
+      };
+      std::thread ConnectThread(ConnectTask);
+#endif
+
+      m_pSSLTCPServer->Listen(ConnectedClient);
+
+#ifdef WINDOWS
+      ASSERT_TRUE(futListen.get());
+#else
+      ConnectThread.join();
+#endif
+
+      ASSERT_FALSE(ConnectedClient.m_pSSL == nullptr);
+      ASSERT_FALSE(ConnectedClient.m_pCTXSSL == nullptr);
+      ASSERT_FALSE(ConnectedClient.m_SockFd == INVALID_SOCKET);
+
+      // perform 3 checks
+      // client side
+      // send period between 50 and 999 ms
+      srand(static_cast<unsigned>(time(nullptr)));
+      unsigned iPeriod = 50 + (rand() % (999 - 50));
+      unsigned uCount = 0;
+      while (uCount++ < 3)
+      {
+         // server -> client
+         EXPECT_TRUE(m_pSSLTCPServer->Send(ConnectedClient, strSendData));
+         EXPECT_GT(m_pSSLTCPClient->Receive(szRcvBuffer, 13), 0);
+         EXPECT_EQ(strSendData, szRcvBuffer);
+         memset(szRcvBuffer, '\0', 14);
+
+         // client -> server
+         EXPECT_TRUE(m_pSSLTCPClient->Send(strSendData));
+         EXPECT_GT(m_pSSLTCPServer->Receive(ConnectedClient, szRcvBuffer, 13), 0);
+         EXPECT_EQ(strSendData, szRcvBuffer);
+         memset(szRcvBuffer, '\0', 14);
 
 #ifdef LINUX
-      usleep(iPeriod * 1000);
+         usleep(iPeriod * 1000);
 #else
-      Sleep(iPeriod);
+         Sleep(iPeriod);
 #endif
-   }
+      }
 
-   // disconnect
-   //EXPECT_TRUE(m_pSSLTCPClient->Disconnect());
-   EXPECT_TRUE(m_pSSLTCPServer->Disconnect(ConnectedClient)); // OK tested
+      // disconnect
+      //EXPECT_TRUE(m_pSSLTCPClient->Disconnect());
+      EXPECT_TRUE(m_pSSLTCPServer->Disconnect(ConnectedClient)); // OK tested
+   }
+   else
+      std::cout << "SECURE TCP tests are disabled !" << std::endl;
 }
 
 #endif
@@ -322,7 +345,7 @@ TEST_F(SSLTCPTest, TestLoopback)
 
 int main(int argc, char **argv)
 {
-   //if (argc > 1 && GlobalTestInit(argv[1])) // loading test parameters from the INI file...
+   if (argc > 1 && GlobalTestInit(argv[1])) // loading test parameters from the INI file...
    {
       ::testing::InitGoogleTest(&argc, argv);
       int iTestResults = RUN_ALL_TESTS();
@@ -331,9 +354,9 @@ int main(int argc, char **argv)
 
       return iTestResults;
    }
-   /*else
+   else
    {
-      std::cerr << "[ERROR] Encountered an error while loading test parameters from provided INI file !" << std::endl;
+      std::cerr << "[Error] Encountered an error while loading test parameters from provided INI file !" << std::endl;
       return 1;
-   }*/
+   }
 }

@@ -1,24 +1,81 @@
 #include "test_utils.h"
 
 // Test configuration constants (to be loaded from an INI file)
-//bool HTTP_PROXY_TEST_ENABLED;
+bool TCP_TEST_ENABLED;
+bool SECURE_TCP_TEST_ENABLED;
+bool HTTP_PROXY_TEST_ENABLED;
 
-//std::string PROXY_SERVER;
-//std::string PROXY_SERVER_FAKE;
+// TCP
+std::string TCP_SERVER_PORT;
 
-//std::mutex g_mtxConsoleMutex;
+// TCP over SSL/TLS
+std::string SECURE_TCP_SERVER_PORT;
+std::string CERT_AUTH_FILE;
+std::string SSL_CERT_FILE;
+std::string SSL_KEY_FILE;
+
+// PROXY TUNNELING
+std::string PROXY_SERVER;
+std::string PROXY_SERVER_FAKE;
+
+// STDOUT MUTEX
+std::mutex g_mtxConsoleMutex;
 
 bool GlobalTestInit(const std::string& strConfFile)
 {
-   //CSimpleIniA ini;
-   //ini.LoadFile(strConfFile.c_str());
+   CSimpleIniA ini;
+   ini.LoadFile(strConfFile.c_str());
 
-   /*strTmp = ini.GetValue("tests", "http-proxy", "");
+   std::string strTmp;
+
+   strTmp = ini.GetValue("tests", "tcp", "");
    std::transform(strTmp.begin(), strTmp.end(), strTmp.begin(), ::toupper);
-   HTTP_PROXY_TEST_ENABLED = (strTmp == "YES") ? true : false;*/
+   TCP_TEST_ENABLED = (strTmp == "YES") ? true : false;
 
-   //PROXY_SERVER = ini.GetValue("http-proxy", "host", "");
-   //PROXY_SERVER_FAKE = ini.GetValue("http-proxy", "host_invalid", "");
+   strTmp = ini.GetValue("tests", "tcp-ssl", "");
+   std::transform(strTmp.begin(), strTmp.end(), strTmp.begin(), ::toupper);
+   SECURE_TCP_TEST_ENABLED = (strTmp == "YES") ? true : false;
+
+   strTmp = ini.GetValue("tests", "http-proxy", "");
+   std::transform(strTmp.begin(), strTmp.end(), strTmp.begin(), ::toupper);
+   HTTP_PROXY_TEST_ENABLED = (strTmp == "YES") ? true : false;
+
+   TCP_SERVER_PORT = ini.GetValue("tcp", "server_port", "");
+
+   // build must be generated with the macro OPENSSL to enable SSL tests
+   SECURE_TCP_SERVER_PORT = ini.GetValue("tcp-ssl", "server_port", "");
+   CERT_AUTH_FILE = ini.GetValue("tcp-ssl", "ca_file", "");
+   SSL_CERT_FILE = ini.GetValue("tcp-ssl", "ssl_cert_file", "");
+   SSL_KEY_FILE = ini.GetValue("tcp-ssl", "ssl_key_file", "");
+
+   PROXY_SERVER = ini.GetValue("http-proxy", "host", "");
+   PROXY_SERVER_FAKE = ini.GetValue("http-proxy", "host_invalid", "");
+
+   if (TCP_TEST_ENABLED && TCP_SERVER_PORT.empty())
+   {
+      std::clog << "[ERROR] Check your INI file TCP's parameter(s)." << std::endl;
+      return false;
+   }
+
+   /* according to my tests :
+    *
+    * For Server:
+    * Cert and Key files mandatory.
+    * 
+    * For Client : nothing is needed
+    */
+   if (SECURE_TCP_TEST_ENABLED &&
+      (/*CERT_AUTH_FILE.empty() || */SSL_CERT_FILE.empty() || SSL_KEY_FILE.empty()))
+   {
+      std::clog << "[ERROR] Check your INI file SSL's parameter(s)." << std::endl;
+      return false;
+   }
+
+   if (HTTP_PROXY_TEST_ENABLED && (PROXY_SERVER.empty() || PROXY_SERVER_FAKE.empty()))
+   {
+      std::clog << "[ERROR] Check your INI file proxy's parameter(s)." << std::endl;
+      return false;
+   }
 
    return true;
 }

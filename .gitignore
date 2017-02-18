@@ -19,3 +19,5 @@ Socket/Socket.vcxproj
 Socket/Socket.vcxproj.filters
 SocketTest/SocketTest.vcxproj
 SocketTest/SocketTest.vcxproj.filters
+SocketTest/SocketTest.vcxproj.user
+SocketTest/tcp_test_conf.ini

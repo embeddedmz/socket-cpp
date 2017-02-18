@@ -20,8 +20,10 @@ WSADATA         ASocket::s_wsaData;
 * @param Logger - a callabck to a logger function void(const std::string&)
 *
 */
-ASocket::ASocket(const LogFnCallback& oLogger) :
-   m_oLog(oLogger)
+ASocket::ASocket(const LogFnCallback& oLogger,
+                 const SettingsFlag eSettings /*= ALL_FLAGS*/) :
+   m_oLog(oLogger),
+   m_eSettingsFlags(eSettings)
 {
    s_mtxCount.lock();
    if (s_iSocketCount++ == 0)
@@ -33,7 +35,8 @@ ASocket::ASocket(const LogFnCallback& oLogger) :
       // MAKEWORD(2,2) version 2.2 of Winsock
       if (iWinSockInitResult != 0)
       {
-         m_oLog(StringFormat("[TCPClient][Error] WSAStartup failed : %d", iWinSockInitResult));
+         if (m_eSettingsFlags & ENABLE_LOG)
+            m_oLog(StringFormat("[TCPClient][Error] WSAStartup failed : %d", iWinSockInitResult));
       }
 #endif
    }

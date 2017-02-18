@@ -8,8 +8,9 @@
 #include "TCPSSLClient.h"
 
 CTCPSSLClient::CTCPSSLClient(const LogFnCallback oLogger,
-                             const OpenSSLProtocol eSSLVersion) :
-   ASecureSocket(oLogger, eSSLVersion),
+                             const OpenSSLProtocol eSSLVersion,
+                             const SettingsFlag eSettings /*= ALL_FLAGS*/) :
+   ASecureSocket(oLogger, eSSLVersion, eSettings),
    m_TCPClient(oLogger)
 {
 
@@ -25,7 +26,8 @@ bool CTCPSSLClient::Connect(const std::string& strServer, const std::string& str
 
       if (m_SSLConnectSocket.m_pCTXSSL == nullptr)
       {
-         m_oLog("[TCPSSLClient][Error] SSL_CTX_new failed.");
+         if (m_eSettingsFlags & ENABLE_LOG)
+            m_oLog("[TCPSSLClient][Error] SSL_CTX_new failed.");
          //ERR_print_errors_fp(stdout);
          return false;
       }
@@ -37,7 +39,9 @@ bool CTCPSSLClient::Connect(const std::string& strServer, const std::string& str
          if (SSL_CTX_use_certificate_file(m_SSLConnectSocket.m_pCTXSSL,
             m_strSSLCertFile.c_str(), SSL_FILETYPE_PEM) <= 0)
          {
-            m_oLog("[TCPSSLClient][Error] Loading cert file failed.");
+            if (m_eSettingsFlags & ENABLE_LOG)
+               m_oLog("[TCPSSLClient][Error] Loading cert file failed.");
+
             return false;
          }
       }
@@ -46,7 +50,9 @@ bool CTCPSSLClient::Connect(const std::string& strServer, const std::string& str
       {
          if (!SSL_CTX_load_verify_locations(m_SSLConnectSocket.m_pCTXSSL, m_strCAFile.c_str(), nullptr))
          {
-            m_oLog("[TCPSSLClient][Error] Loading CA file failed.");
+            if (m_eSettingsFlags & ENABLE_LOG)
+               m_oLog("[TCPSSLClient][Error] Loading CA file failed.");
+
             return false;
          }
          SSL_CTX_set_verify_depth(m_SSLConnectSocket.m_pCTXSSL, 1);
@@ -61,7 +67,8 @@ bool CTCPSSLClient::Connect(const std::string& strServer, const std::string& str
          if (SSL_CTX_use_PrivateKey_file(m_SSLConnectSocket.m_pCTXSSL,
             m_strSSLKeyFile.c_str(), SSL_FILETYPE_PEM) <= 0)
          {
-            m_oLog("[TCPSSLClient][Error] Loading key file failed.");
+            if (m_eSettingsFlags & ENABLE_LOG)
+               m_oLog("[TCPSSLClient][Error] Loading key file failed.");
             //ERR_print_errors_fp(stdout);
             return false;
          }
@@ -69,11 +76,12 @@ bool CTCPSSLClient::Connect(const std::string& strServer, const std::string& str
          /* verify private key */
          /*if (!SSL_CTX_check_private_key(m_SSLConnectSocket.m_pCTXSSL))
          {
-            m_oLog("[TCPSSLClient][Error] Private key does not match the public certificate.");
+            if (m_eSettingsFlags & ENABLE_LOG)
+               m_oLog("[TCPSSLClient][Error] Private key does not match the public certificate.");
             return false;
          }*/
       }
-      SSL_CTX_set_cert_verify_callback(m_SSLConnectSocket.m_pCTXSSL, AlwaysTrueCallback, nullptr);
+      //SSL_CTX_set_cert_verify_callback(m_SSLConnectSocket.m_pCTXSSL, AlwaysTrueCallback, nullptr);
 
       /* create new SSL connection state */
       m_SSLConnectSocket.m_pSSL = SSL_new(m_SSLConnectSocket.m_pCTXSSL);
@@ -84,33 +92,44 @@ bool CTCPSSLClient::Connect(const std::string& strServer, const std::string& str
       if (iResult > 0)
       {
          /* The data can now be transmitted securely over this connection. */
-         m_oLog(StringFormat("[TCPSSLClient][Info] Connected with '%s' encryption.",
+         if (m_eSettingsFlags & ENABLE_LOG)
+            m_oLog(StringFormat("[TCPSSLClient][Info] Connected with '%s' encryption.",
                              SSL_get_cipher(m_SSLConnectSocket.m_pSSL)));
          
          /*if (SSL_get_peer_certificate(m_SSLConnectSocket.m_pSSL) != nullptr)
          {
             if (SSL_get_verify_result(m_SSLConnectSocket.m_pSSL) == X509_V_OK)
-               m_oLog("client verification with SSL_get_verify_result() succeeded.");
+            {
+               if (m_eSettingsFlags & ENABLE_LOG)
+                  m_oLog("client verification with SSL_get_verify_result() succeeded.");
+            }
             else
             {
-               m_oLog("client verification with SSL_get_verify_result() failed.\n");
+               if (m_eSettingsFlags & ENABLE_LOG)
+                  m_oLog("client verification with SSL_get_verify_result() failed.\n");
+
                return false;
             }
          }
-         else
+         else if (m_eSettingsFlags & ENABLE_LOG)
             m_oLog("the peer certificate was not presented.");*/
 
          return true;
       }
+      // under Windows it creates problems
+      #ifdef LINUX
       ERR_print_errors_fp(stdout);
+      #endif
 
-      m_oLog(StringFormat("[TCPSSLClient][Error] SSL_connect failed (Error=%d | %s)",
-         iResult, GetSSLErrorString(SSL_get_error(m_SSLConnectSocket.m_pSSL, iResult))));
+      if (m_eSettingsFlags & ENABLE_LOG)
+         m_oLog(StringFormat("[TCPSSLClient][Error] SSL_connect failed (Error=%d | %s)",
+            iResult, GetSSLErrorString(SSL_get_error(m_SSLConnectSocket.m_pSSL, iResult))));
 
       return false;
    }
 
-   m_oLog("[TCPSSLClient][Error] Unable to establish a TCP connection with the server.");
+   if (m_eSettingsFlags & ENABLE_LOG)
+      m_oLog("[TCPSSLClient][Error] Unable to establish a TCP connection with the server.");
 
    return false;
 }
@@ -119,7 +138,9 @@ bool CTCPSSLClient::Send(const char* pData, const size_t uSize) const
 {
    if (m_TCPClient.m_eStatus != CTCPClient::CONNECTED)
    {
-      m_oLog("[TCPSSLClient][Error] SSL send failed : not connected to an SSL server.");
+      if (m_eSettingsFlags & ENABLE_LOG)
+         m_oLog("[TCPSSLClient][Error] SSL send failed : not connected to an SSL server.");
+
       return false;
    }
 
@@ -127,8 +148,9 @@ bool CTCPSSLClient::Send(const char* pData, const size_t uSize) const
    int iBytesSent = SSL_write(m_SSLConnectSocket.m_pSSL, pData, uSize);
    if (iBytesSent <= 0)
    {
-      m_oLog(StringFormat("[TCPSSLClient][Error] SSL_write failed (Error=%d | %s)",
-         iBytesSent, GetSSLErrorString(SSL_get_error(m_SSLConnectSocket.m_pSSL, iBytesSent))));
+      if (m_eSettingsFlags & ENABLE_LOG)
+         m_oLog(StringFormat("[TCPSSLClient][Error] SSL_write failed (Error=%d | %s)",
+            iBytesSent, GetSSLErrorString(SSL_get_error(m_SSLConnectSocket.m_pSSL, iBytesSent))));
 
       return false;
    }
@@ -150,15 +172,18 @@ int CTCPSSLClient::Receive(char* pData, const size_t uSize) const
 {
    if (m_TCPClient.m_eStatus != CTCPClient::CONNECTED)
    {
-      m_oLog("[TCPSSLClient][Error] SSL recv failed : not connected to a server.");
+      if (m_eSettingsFlags & ENABLE_LOG)
+         m_oLog("[TCPSSLClient][Error] SSL recv failed : not connected to a server.");
+
       return -1;
    }
 
    int iBytesRcvd = SSL_read(m_SSLConnectSocket.m_pSSL, pData, uSize);
    if (iBytesRcvd <= 0)
    {
-      m_oLog(StringFormat("[TCPSSLClient][Error] SSL_read failed (Error=%d | %s)",
-         iBytesRcvd, GetSSLErrorString(SSL_get_error(m_SSLConnectSocket.m_pSSL, iBytesRcvd))));
+      if (m_eSettingsFlags & ENABLE_LOG)
+         m_oLog(StringFormat("[TCPSSLClient][Error] SSL_read failed (Error=%d | %s)",
+            iBytesRcvd, GetSSLErrorString(SSL_get_error(m_SSLConnectSocket.m_pSSL, iBytesRcvd))));
    }
 
    return iBytesRcvd;

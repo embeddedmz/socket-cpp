@@ -6,8 +6,9 @@
 
 #include "TCPClient.h"
 
-CTCPClient::CTCPClient(const LogFnCallback oLogger) :
-   ASocket(oLogger),
+CTCPClient::CTCPClient(const LogFnCallback oLogger,
+                       const SettingsFlag eSettings /*= ALL_FLAGS*/) :
+   ASocket(oLogger, eSettings),
    m_eStatus(DISCONNECTED),
    #ifdef WINDOWS
    m_ConnectSocket(INVALID_SOCKET),
@@ -27,7 +28,8 @@ bool CTCPClient::Connect(const std::string& strServer, const std::string& strPor
    if (m_eStatus == CONNECTED)
    {
       Disconnect();
-      m_oLog("[TCPClient][Warning] Opening a new connexion. The last one was automatically closed.");
+      if (m_eSettingsFlags & ENABLE_LOG)
+         m_oLog("[TCPClient][Warning] Opening a new connexion. The last one was automatically closed.");
    }
 
    #ifdef WINDOWS
@@ -43,7 +45,8 @@ bool CTCPClient::Connect(const std::string& strServer, const std::string& strPor
    int iResult = getaddrinfo(strServer.c_str(), strPort.c_str(), &m_HintsAddrInfo, &m_pResultAddrInfo);
    if (iResult != 0)
    {
-      m_oLog(StringFormat("[TCPClient][Error] getaddrinfo failed : %d", iResult));
+      if (m_eSettingsFlags & ENABLE_LOG)
+         m_oLog(StringFormat("[TCPClient][Error] getaddrinfo failed : %d", iResult));
 
       if (m_pResultAddrInfo != nullptr)
       {
@@ -61,7 +64,9 @@ bool CTCPClient::Connect(const std::string& strServer, const std::string& strPor
 
    if (m_ConnectSocket == INVALID_SOCKET)
    {
-      m_oLog(StringFormat("[TCPClient][Error] socket failed : %d", WSAGetLastError()));
+      if (m_eSettingsFlags & ENABLE_LOG)
+         m_oLog(StringFormat("[TCPClient][Error] socket failed : %d", WSAGetLastError()));
+
       closesocket(m_ConnectSocket);
       freeaddrinfo(m_pResultAddrInfo);
       m_pResultAddrInfo = nullptr;
@@ -100,7 +105,9 @@ bool CTCPClient::Connect(const std::string& strServer, const std::string& strPor
 
       // retry mechanism
       //if (uRetry < m_uRetryCount)
-         //m_oLog(StringFormat("[TCPClient][Error] connect retry %u after %u second(s)", m_uRetryCount + 1, m_uRetryPeriod));
+         //if (m_eSettingsFlags & ENABLE_LOG)
+            /*m_oLog(StringFormat("[TCPClient][Error] connect retry %u after %u second(s)",
+            m_uRetryCount + 1, m_uRetryPeriod));*/
 
       //if (m_uRetryPeriod > 0)
       //{
@@ -117,14 +124,17 @@ bool CTCPClient::Connect(const std::string& strServer, const std::string& strPor
       m_eStatus = CONNECTED;
       return true;
    }
-   m_oLog(StringFormat("[TCPClient][Error] Unable to connect to server : %d", WSAGetLastError()));
+   if (m_eSettingsFlags & ENABLE_LOG)
+      m_oLog(StringFormat("[TCPClient][Error] Unable to connect to server : %d", WSAGetLastError()));
 
    #else
    // socket creation
    m_ConnectSocket = socket(AF_INET, SOCK_STREAM, 0);
    if (m_ConnectSocket < 0)
    {
-      m_oLog(StringFormat("[TCPClient][Error] opening socket: %s", strerror(errno)));
+      if (m_eSettingsFlags & ENABLE_LOG)
+         m_oLog(StringFormat("[TCPClient][Error] opening socket: %s", strerror(errno)));
+
       return false;
    }
    
@@ -132,7 +142,9 @@ bool CTCPClient::Connect(const std::string& strServer, const std::string& strPor
    m_pServer = gethostbyname(strServer.c_str());
    if (m_pServer == nullptr)
    {
-      m_oLog("[TCPClient][Error] no such host.");
+      if (m_eSettingsFlags & ENABLE_LOG)
+         m_oLog("[TCPClient][Error] no such host.");
+
       return false;
    }
    
@@ -158,7 +170,8 @@ bool CTCPClient::Connect(const std::string& strServer, const std::string& strPor
       m_eStatus = CONNECTED;
       return true;
    }
-   m_oLog(StringFormat("[TCPClient][Error] connecting : %s", strerror(errno)));
+   if (m_eSettingsFlags & ENABLE_LOG)
+      m_oLog(StringFormat("[TCPClient][Error] connecting : %s", strerror(errno)));
    #endif
 
    return false;
@@ -168,7 +181,9 @@ bool CTCPClient::Send(const char* pData, const size_t uSize) const
 {
    if (m_eStatus != CONNECTED)
    {
-      m_oLog("[TCPClient][Error] send failed : not connected to a server.");
+      if (m_eSettingsFlags & ENABLE_LOG)
+         m_oLog("[TCPClient][Error] send failed : not connected to a server.");
+      
       return false;
    }
 
@@ -177,15 +192,19 @@ bool CTCPClient::Send(const char* pData, const size_t uSize) const
    iResult = send(m_ConnectSocket, pData, uSize, 0);
    if (iResult == SOCKET_ERROR)
    {
-      m_oLog(StringFormat("[TCPClient][Error] send failed : %d", WSAGetLastError()));
+      if (m_eSettingsFlags & ENABLE_LOG)
+         m_oLog(StringFormat("[TCPClient][Error] send failed : %d", WSAGetLastError()));
       //Disconnect();
+
       return false;
    }
    #else
    iResult = write(m_ConnectSocket, pData, uSize);
    if (iResult < 0) 
    {
-      m_oLog(StringFormat("[TCPClient][Error] writing to socket : %s", strerror(errno)));
+      if (m_eSettingsFlags & ENABLE_LOG)
+         m_oLog(StringFormat("[TCPClient][Error] writing to socket : %s", strerror(errno)));
+
       return false;
    }
    #endif
@@ -211,7 +230,9 @@ int CTCPClient::Receive(char* pData, const size_t uSize) const
 {
    if (m_eStatus != CONNECTED)
    {
-      m_oLog("[TCPClient][Error] recv failed : not connected to a server.");
+      if (m_eSettingsFlags & ENABLE_LOG)
+         m_oLog("[TCPClient][Error] recv failed : not connected to a server.");
+
       return -1;
    }
 
@@ -221,14 +242,16 @@ int CTCPClient::Receive(char* pData, const size_t uSize) const
    iBytesRcvd = recv(m_ConnectSocket, pData, uSize, 0);
    if (iBytesRcvd < 0)
    {
-      m_oLog(StringFormat("[TCPClient][Error] recv failed : %d", WSAGetLastError()));
+      if (m_eSettingsFlags & ENABLE_LOG)
+         m_oLog(StringFormat("[TCPClient][Error] recv failed : %d", WSAGetLastError()));
    }
    #else
    //bzero(pData, uSize);
    iBytesRcvd = read(m_ConnectSocket, pData, uSize);
    if (iBytesRcvd < 0)
    {
-      m_oLog(StringFormat("[TCPClient][Error] reading from socket : %s", strerror(errno)));
+      if (m_eSettingsFlags & ENABLE_LOG)
+         m_oLog(StringFormat("[TCPClient][Error] reading from socket : %s", strerror(errno)));
    }
    #endif
 
@@ -247,7 +270,9 @@ bool CTCPClient::Disconnect()
    int iResult = shutdown(m_ConnectSocket, SD_SEND);
    if (iResult == SOCKET_ERROR)
    {
-      m_oLog(StringFormat("[TCPClient][Error] shutdown failed : %d", WSAGetLastError()));
+      if (m_eSettingsFlags & ENABLE_LOG)
+         m_oLog(StringFormat("[TCPClient][Error] shutdown failed : %d", WSAGetLastError()));
+      
       return false;
    }
    closesocket(m_ConnectSocket);

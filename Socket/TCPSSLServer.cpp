@@ -9,9 +9,10 @@
 
 CTCPSSLServer::CTCPSSLServer(const LogFnCallback oLogger,
                              const std::string& strPort,
-                             const OpenSSLProtocol eSSLVersion)
+                             const OpenSSLProtocol eSSLVersion,
+                             const SettingsFlag eSettings /*= ALL_FLAGS*/)
                              throw (EResolveError) :
-   ASecureSocket(oLogger, eSSLVersion),
+   ASecureSocket(oLogger, eSSLVersion, eSettings),
    m_TCPServer(oLogger, strPort)
 {
 
@@ -26,13 +27,14 @@ bool CTCPSSLServer::Listen(SSLSocket& ClientSocket)
 
       if (ClientSocket.m_pCTXSSL == nullptr)
       {
-         m_oLog("[TCPSSLServer][Error] SSL CTX failed.");
+         if (m_eSettingsFlags & ENABLE_LOG)
+            m_oLog("[TCPSSLServer][Error] SSL CTX failed.");
          //ERR_print_errors_fp(stdout);
          return false;
       }
 
       //SSL_CTX_set_options(ClientSocket.m_pCTXSSL, SSL_OP_SINGLE_DH_USE);
-      SSL_CTX_set_cert_verify_callback(ClientSocket.m_pCTXSSL, AlwaysTrueCallback, nullptr);
+      //SSL_CTX_set_cert_verify_callback(ClientSocket.m_pCTXSSL, AlwaysTrueCallback, nullptr);
 
       /* Load server certificate into the SSL context. */
       if (!m_strSSLCertFile.empty())
@@ -40,7 +42,8 @@ bool CTCPSSLServer::Listen(SSLSocket& ClientSocket)
          if (SSL_CTX_use_certificate_file(ClientSocket.m_pCTXSSL,
             m_strSSLCertFile.c_str(), SSL_FILETYPE_PEM) <= 0)
          {
-            m_oLog("[TCPSSLServer][Error] Loading cert file failed.");
+            if (m_eSettingsFlags & ENABLE_LOG)
+               m_oLog("[TCPSSLServer][Error] Loading cert file failed.");
             //ERR_print_errors_fp(stdout);
             return false;
          }
@@ -50,7 +53,9 @@ bool CTCPSSLServer::Listen(SSLSocket& ClientSocket)
       {
          if (!SSL_CTX_load_verify_locations(ClientSocket.m_pCTXSSL, m_strCAFile.c_str(), nullptr))
          {
-            m_oLog("[TCPSSLServer][Error] Loading CA file failed.");
+            if (m_eSettingsFlags & ENABLE_LOG)
+               m_oLog("[TCPSSLServer][Error] Loading CA file failed.");
+
             return false;
          }
          /* Set to require peer (client) certificate verification. */
@@ -64,7 +69,8 @@ bool CTCPSSLServer::Listen(SSLSocket& ClientSocket)
          if (SSL_CTX_use_PrivateKey_file(ClientSocket.m_pCTXSSL,
             m_strSSLKeyFile.c_str(), SSL_FILETYPE_PEM) <= 0)
          {
-            m_oLog("[TCPSSLServer][Error] Loading key file failed.");
+            if (m_eSettingsFlags & ENABLE_LOG)
+               m_oLog("[TCPSSLServer][Error] Loading key file failed.");
             //ERR_print_errors_fp(stdout);
             return false;
          }
@@ -72,7 +78,9 @@ bool CTCPSSLServer::Listen(SSLSocket& ClientSocket)
          // verify private key
          /*if (!SSL_CTX_check_private_key(ClientSocket.m_pCTXSSL))
          {
-            m_oLog("[TCPSSLServer][Error] Private key does not match the public certificate.");
+            if (m_eSettingsFlags & ENABLE_LOG)
+               m_oLog("[TCPSSLServer][Error] Private key does not match the public certificate.");
+
             return false;
          }*/
       }
@@ -86,11 +94,15 @@ bool CTCPSSLServer::Listen(SSLSocket& ClientSocket)
       if (iSSLErr <= 0)
       {
          //Error occurred, log and close down ssl
-         m_oLog(StringFormat("[TCPSSLServer][Error] accept failed. (Error=%d | %s)",
+         if (m_eSettingsFlags & ENABLE_LOG)
+            m_oLog(StringFormat("[TCPSSLServer][Error] accept failed. (Error=%d | %s)",
                              iSSLErr, GetSSLErrorString(SSL_get_error(ClientSocket.m_pSSL, iSSLErr))));
 
          //if (iSSLErr < 0)
+         // under Windows it creates problems
+            #ifdef LINUX
             ERR_print_errors_fp(stdout);
+            #endif
 
          ShutdownSSL(ClientSocket);
 
@@ -103,7 +115,8 @@ bool CTCPSSLServer::Listen(SSLSocket& ClientSocket)
       return true;
    }
 
-   m_oLog("[TCPSSLServer][Error] Unable to accept an incoming TCP connection with a client.");
+   if (m_eSettingsFlags & ENABLE_LOG)
+      m_oLog("[TCPSSLServer][Error] Unable to accept an incoming TCP connection with a client.");
 
    return false;
 }
@@ -116,8 +129,9 @@ int CTCPSSLServer::Receive(const SSLSocket& ClientSocket, char* pData, const siz
 
    if (iBytesRcvd < 0)
    {
-      m_oLog(StringFormat("[TCPSSLServer][Error] SSL_read failed (Error=%d | %s)",
-         iBytesRcvd, GetSSLErrorString(SSL_get_error(ClientSocket.m_pSSL, iBytesRcvd))));
+      if (m_eSettingsFlags & ENABLE_LOG)
+         m_oLog(StringFormat("[TCPSSLServer][Error] SSL_read failed (Error=%d | %s)",
+            iBytesRcvd, GetSSLErrorString(SSL_get_error(ClientSocket.m_pSSL, iBytesRcvd))));
 
       //ERR_print_errors_fp(stdout);
    }
@@ -134,8 +148,9 @@ bool CTCPSSLServer::Send(const SSLSocket& ClientSocket, const char* pData, const
 
    if (iBytesSent <= 0)
    {
-      m_oLog(StringFormat("[TCPSSLServer][Error] SSL_write failed (Error=%d | %s)",
-         iBytesSent, GetSSLErrorString(SSL_get_error(ClientSocket.m_pSSL, iBytesSent))));
+      if (m_eSettingsFlags & ENABLE_LOG)
+         m_oLog(StringFormat("[TCPSSLServer][Error] SSL_write failed (Error=%d | %s)",
+            iBytesSent, GetSSLErrorString(SSL_get_error(ClientSocket.m_pSSL, iBytesSent))));
 
       return false;
    }
