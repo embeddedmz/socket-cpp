@@ -91,7 +91,7 @@ bool CTCPSSLServer::Listen(SSLSocket& ClientSocket)
                              iSSLErr, GetSSLErrorString(SSL_get_error(ClientSocket.m_pSSL, iSSLErr))));
 
          //if (iSSLErr < 0)
-            ERR_print_errors_fp(stderr);
+            ERR_print_errors_fp(stdout);
 
          ShutdownSSL(ClientSocket);
 
