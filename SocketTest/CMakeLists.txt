@@ -4,6 +4,7 @@ project(TestSocket)
 set(EXECUTABLE_OUTPUT_PATH bin/${CMAKE_BUILD_TYPE})
 set(CMAKE_CXX_STANDARD 14) # c++14
 add_definitions(-DLINUX)
+add_definitions(-DOPENSSL)
 
 # Code coverage setup
 IF(CMAKE_BUILD_TYPE MATCHES Coverage)
@@ -47,6 +48,6 @@ link_directories(../lib/${CMAKE_BUILD_TYPE})
 add_executable(test_socket Tests.cpp test_utils.cpp)
 
 #Link setup
-target_link_libraries(test_socket socket ${GTEST_LIBRARIES} pthread curl)
+target_link_libraries(test_socket socket ${GTEST_LIBRARIES} pthread curl ssl crypto)
 
 ENDIF(CMAKE_BUILD_TYPE MATCHES Coverage)

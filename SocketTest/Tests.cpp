@@ -68,7 +68,7 @@ protected:
 
    virtual void SetUp()
    {
-      m_pSSLTCPClient.reset(new CTCPSSLClient(PRINT_LOG, ASecureSocket::OpenSSLProtocol::SSL_V3));
+      m_pSSLTCPClient.reset(new CTCPSSLClient(PRINT_LOG));
    }
 
    virtual void TearDown()
@@ -229,30 +229,57 @@ TEST_F(SSLTCPTest, TestLoopback)
    char szRcvBuffer[14] = {};
    ASecureSocket::SSLSocket ConnectedClient;
 
-   ASSERT_NO_THROW(m_pSSLTCPServer.reset(new CTCPSSLServer(PRINT_LOG, "4242",
-      ASecureSocket::OpenSSLProtocol::SSL_V3)));
+   ASSERT_NO_THROW(m_pSSLTCPServer.reset(new CTCPSSLServer(PRINT_LOG, "4242")));
 
-   m_pSSLTCPServer->SetSSLCertFile("C:\\TestOpenSSL\\site.cert");
-   //m_pSSLTCPServer->SetSSLCerthAuth("C:\\TestOpenSSL\\CAfile.pem");
+   m_pSSLTCPServer->SetSSLCertFile("site.cert");
+   m_pSSLTCPServer->SetSSLCerthAuth("CAfile.pem");
+   m_pSSLTCPServer->SetSSLKeyFile("privkey.pem");
 
+   #ifdef WINDOWS
    std::future<bool> futListen = std::async([&]() -> bool
    {
       // give time to let the server object reach the accept instruction.
       #ifdef LINUX
-      for (int iSec = 0; iSec < 5; ++iSec)
-         usleep(1000000);
+      //for (int iSec = 0; iSec < 5000; ++iSec)
+         //usleep(1000);
       #else
       for (int iSec = 0; iSec < 5; ++iSec)
          Sleep(1000);
       #endif
 
-      m_pSSLTCPClient->SetSSLCerthAuth("C:\\TestOpenSSL\\CAfile.pem");
+      //m_pSSLTCPClient->SetSSLCerthAuth("C:\\TestOpenSSL\\CAfile.pem");
       return m_pSSLTCPClient->Connect("localhost", "4242");
    });
+   #else
+   auto ConnectTask = [&]() -> bool 
+   {
+      // give time to let the server object reach the accept instruction.
+      #ifdef LINUX
+      std::cout << "** Connect task : delay\n";
+      for (int iSec = 0; iSec < 5000; ++iSec)
+         usleep(1000);
+      #else
+      for (int iSec = 0; iSec < 5; ++iSec)
+         Sleep(1000);
+      #endif
+      std::cout << "** Connect task : begin connect\n";
+      m_pSSLTCPClient->SetSSLCerthAuth("CAfile.pem");
+      m_pSSLTCPClient->SetSSLKeyFile("privkey.pem");
+      bool bRet = m_pSSLTCPClient->Connect("localhost", "4242");
+      std::cout << "** Connect task : end connect\n";
+      return bRet;
+   };
+   std::thread ConnectThread(ConnectTask);
+   #endif
 
    m_pSSLTCPServer->Listen(ConnectedClient);
 
+   #ifdef WINDOWS
    ASSERT_TRUE(futListen.get());
+   #else
+   ConnectThread.join();
+   #endif
+
    ASSERT_FALSE(ConnectedClient.m_pSSL == nullptr);
    ASSERT_FALSE(ConnectedClient.m_pCTXSSL == nullptr);
    ASSERT_FALSE(ConnectedClient.m_SockFd == INVALID_SOCKET);
