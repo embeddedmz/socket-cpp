@@ -23,7 +23,9 @@ class ASecureSocket : public ASocket
 public:
    enum class OpenSSLProtocol
    {
+      #ifndef LINUX
       SSL_V2,
+      #endif
       SSL_V3,
       TLS_V1,
       SSL_V23 /* There is no SSL protocol version named SSLv23. The SSLv23_method() API

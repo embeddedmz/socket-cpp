@@ -59,8 +59,7 @@ bool CTCPSSLServer::Listen(SSLSocket& ClientSocket)
          SSL_CTX_set_verify_depth(ClientSocket.m_pCTXSSL, 1);
       }
       /* Load the server private-key into the SSL context. */
-      // uses stdin to request passphrase....
-      /*if (!m_strSSLKeyFile.empty())
+      if (!m_strSSLKeyFile.empty())
       {
          if (SSL_CTX_use_PrivateKey_file(ClientSocket.m_pCTXSSL,
             m_strSSLKeyFile.c_str(), SSL_FILETYPE_PEM) <= 0)
@@ -71,12 +70,12 @@ bool CTCPSSLServer::Listen(SSLSocket& ClientSocket)
          }
 
          // verify private key
-         if (!SSL_CTX_check_private_key(ClientSocket.m_pCTXSSL))
+         /*if (!SSL_CTX_check_private_key(ClientSocket.m_pCTXSSL))
          {
             m_oLog("[TCPSSLServer][Error] Private key does not match the public certificate.");
             return false;
-         }
-      }*/
+         }*/
+      }
 
       ClientSocket.m_pSSL = SSL_new(ClientSocket.m_pCTXSSL);
       // set the socket directly into the SSL structure or we can use a BIO structure

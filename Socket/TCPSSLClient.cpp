@@ -58,14 +58,13 @@ bool CTCPSSLClient::Connect(const std::string& strServer, const std::string& str
        * only using the private key. */
       if (!m_strSSLKeyFile.empty())
       {
-         // commented as it uses stdin to request the passphrase...
-         /*if (SSL_CTX_use_PrivateKey_file(m_SSLConnectSocket.m_pCTXSSL,
+         if (SSL_CTX_use_PrivateKey_file(m_SSLConnectSocket.m_pCTXSSL,
             m_strSSLKeyFile.c_str(), SSL_FILETYPE_PEM) <= 0)
          {
             m_oLog("[TCPSSLClient][Error] Loading key file failed.");
             //ERR_print_errors_fp(stdout);
             return false;
-         }*/
+         }
 
          /* verify private key */
          /*if (!SSL_CTX_check_private_key(m_SSLConnectSocket.m_pCTXSSL))
@@ -103,6 +102,7 @@ bool CTCPSSLClient::Connect(const std::string& strServer, const std::string& str
 
          return true;
       }
+      ERR_print_errors_fp(stdout);
 
       m_oLog(StringFormat("[TCPSSLClient][Error] SSL_connect failed (Error=%d | %s)",
          iResult, GetSSLErrorString(SSL_get_error(m_SSLConnectSocket.m_pSSL, iResult))));

@@ -8,8 +8,10 @@
 
 #include "SecureSocket.h"
 
+#ifndef LINUX
 // to avoid link problems in prod/test program
 #include <openssl/applink.c>
+#endif
 
 // Static members initialization
 volatile int    ASecureSocket::s_iSecureSocketCount = 0;
@@ -57,19 +59,21 @@ void ASecureSocket::SetUpCtxClient(SSLSocket& Socket)
    {
       default:
       case OpenSSLProtocol::SSL_V23:
-         Socket.m_pMTHDSSL = SSLv23_client_method();
+         Socket.m_pMTHDSSL = const_cast<SSL_METHOD*>(SSLv23_client_method());
          break;
 
+      #ifndef LINUX
       case OpenSSLProtocol::SSL_V2:
-         Socket.m_pMTHDSSL = SSLv2_client_method();
+         Socket.m_pMTHDSSL = const_cast<SSL_METHOD*>(SSLv2_client_method());
          break;
+      #endif
 
       case OpenSSLProtocol::SSL_V3:
-         Socket.m_pMTHDSSL = SSLv3_client_method();
+         Socket.m_pMTHDSSL = const_cast<SSL_METHOD*>(SSLv3_client_method());
          break;
 
       case OpenSSLProtocol::TLS_V1:
-         Socket.m_pMTHDSSL = TLSv1_client_method();
+         Socket.m_pMTHDSSL = const_cast<SSL_METHOD*>(TLSv1_client_method());
          break;
    }
    Socket.m_pCTXSSL = SSL_CTX_new(Socket.m_pMTHDSSL);
@@ -81,19 +85,21 @@ void ASecureSocket::SetUpCtxServer(SSLSocket& Socket)
    {
       default:
       case OpenSSLProtocol::SSL_V23:
-         Socket.m_pMTHDSSL = SSLv23_server_method();
+         Socket.m_pMTHDSSL = const_cast<SSL_METHOD*>(SSLv23_server_method());
          break;
 
+      #ifndef LINUX
       case OpenSSLProtocol::SSL_V2:
-         Socket.m_pMTHDSSL = SSLv2_server_method();
+         Socket.m_pMTHDSSL = const_cast<SSL_METHOD*>(SSLv2_server_method());
          break;
+      #endif
 
       case OpenSSLProtocol::SSL_V3:
-         Socket.m_pMTHDSSL = SSLv3_server_method();
+         Socket.m_pMTHDSSL = const_cast<SSL_METHOD*>(SSLv3_server_method());
          break;
 
       case OpenSSLProtocol::TLS_V1:
-         Socket.m_pMTHDSSL = TLSv1_server_method();
+         Socket.m_pMTHDSSL = const_cast<SSL_METHOD*>(TLSv1_server_method());
          break;
    }
    Socket.m_pCTXSSL = SSL_CTX_new(Socket.m_pMTHDSSL);

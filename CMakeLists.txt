@@ -6,6 +6,7 @@ set(LIBRARY_OUTPUT_PATH lib/${CMAKE_BUILD_TYPE})
 set(CMAKE_CXX_STANDARD 14)
 
 add_definitions(-DLINUX)
+add_definitions(-DOPENSSL)
 
 include_directories(Socket)
 
