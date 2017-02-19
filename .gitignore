@@ -13,6 +13,7 @@ SocketTest/coverage/*
 #Windows
 .vs/*
 Socket.VC.db
+Socket.VC.VC.opendb
 Socket.sln
 Socket/.vs/*
 Socket/ReadMe.txt

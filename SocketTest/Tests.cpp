@@ -225,7 +225,8 @@ TEST_F(SSLTCPTest, TestServer)
    ASecureSocket::SSLSocket ConnectedClient;
 
    ASSERT_NO_THROW(m_pSSLTCPServer.reset(new CTCPSSLServer(PRINT_LOG, "4242")));
-   m_pSSLTCPServer->SetSSLCertFile("C:\\TestOpenSSL\\site.cert");
+   m_pSSLTCPServer->SetSSLCertFile(SSL_CERT_FILE);
+   m_pSSLTCPServer->SetSSLKeyFile(SSL_KEY_FILE);
 
    ASSERT_TRUE(m_pSSLTCPServer->Listen(ConnectedClient));
 
