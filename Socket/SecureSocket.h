@@ -42,6 +42,42 @@ public:
       {
       }
 
+      // copy constructor and assignment operator are disabled
+      SSLSocket(const SSLSocket&) = delete;
+      SSLSocket& operator=(const SSLSocket&) = delete;
+
+      // move constructor
+      SSLSocket(SSLSocket&& Sockother) :
+        m_SockFd(Sockother.m_SockFd),
+        m_pSSL(Sockother.m_pSSL),
+        m_pCTXSSL(Sockother.m_pCTXSSL),
+        m_pMTHDSSL(Sockother.m_pMTHDSSL)
+      {
+        Sockother.m_SockFd = INVALID_SOCKET;
+        Sockother.m_pSSL = nullptr;
+        Sockother.m_pCTXSSL = nullptr;
+        Sockother.m_pMTHDSSL = nullptr;
+      }
+
+      // move assignment operator
+      SSLSocket& operator=(SSLSocket&& Sockother)
+      {
+         if (this != &Sockother)
+         {
+            m_SockFd = Sockother.m_SockFd;
+            m_pSSL = Sockother.m_pSSL;
+            m_pCTXSSL = Sockother.m_pCTXSSL;
+            m_pMTHDSSL = Sockother.m_pMTHDSSL;
+
+            // reset Sockother
+            Sockother.m_SockFd = INVALID_SOCKET;
+            Sockother.m_pSSL = nullptr;
+            Sockother.m_pCTXSSL = nullptr;
+            Sockother.m_pMTHDSSL = nullptr;
+         }
+         return *this;
+      }
+
       Socket       m_SockFd;
       SSL*         m_pSSL;
       SSL_CTX*     m_pCTXSSL; // SSL Context Structure

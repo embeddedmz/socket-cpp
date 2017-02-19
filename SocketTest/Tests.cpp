@@ -245,7 +245,7 @@ TEST_F(SSLTCPTest, TestServer)
 
 TEST_F(SSLTCPTest, TestLoopback)
 {
-   if (TCP_TEST_ENABLED)
+   if (SECURE_TCP_TEST_ENABLED)
    {
       const std::string strSendData = "Hello World !";
       char szRcvBuffer[14] = {};
@@ -332,8 +332,8 @@ TEST_F(SSLTCPTest, TestLoopback)
       }
 
       // disconnect
-      //EXPECT_TRUE(m_pSSLTCPClient->Disconnect());
-      EXPECT_TRUE(m_pSSLTCPServer->Disconnect(ConnectedClient)); // OK tested
+      EXPECT_TRUE(m_pSSLTCPClient->Disconnect());
+      EXPECT_TRUE(m_pSSLTCPServer->Disconnect(ConnectedClient));
    }
    else
       std::cout << "SECURE TCP tests are disabled !" << std::endl;

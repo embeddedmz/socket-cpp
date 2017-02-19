@@ -138,6 +138,7 @@ void ASecureSocket::ShutdownSSL(SSLSocket& SSLSock)
       /* send the close_notify alert to the peer. */
       SSL_shutdown(SSLSock.m_pSSL); // must be called before SSL_free
       SSL_free(SSLSock.m_pSSL);
+      SSL_CTX_free(SSLSock.m_pCTXSSL);
 
       SSLSock.m_pSSL = nullptr;
    }

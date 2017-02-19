@@ -8,6 +8,7 @@ SocketTest/bin/*
 SocketTest/cmake_install.cmake
 cmake_install.cmake
 lib/*
+SocketTest/coverage/*
 
 #Windows
 .vs/*

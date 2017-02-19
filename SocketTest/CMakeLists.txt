@@ -29,7 +29,7 @@ file(GLOB_RECURSE socket_source_files ../Socket/*)
 add_executable(test_socket Tests.cpp test_utils.cpp ${socket_source_files})
 
 #Link setup
-target_link_libraries(test_socket ${GTEST_LIBRARIES} pthread)
+target_link_libraries(test_socket ${GTEST_LIBRARIES} pthread ssl crypto)
 
 SETUP_TARGET_FOR_COVERAGE(
            coverage_socket  # Name for custom target.
@@ -48,6 +48,7 @@ link_directories(../lib/${CMAKE_BUILD_TYPE})
 add_executable(test_socket Tests.cpp test_utils.cpp)
 
 #Link setup
-target_link_libraries(test_socket socket ${GTEST_LIBRARIES} pthread curl ssl crypto)
+target_link_libraries(test_socket socket ${GTEST_LIBRARIES} pthread ssl crypto)
 
 ENDIF(CMAKE_BUILD_TYPE MATCHES Coverage)
+

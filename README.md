@@ -1,4 +1,4 @@
-﻿# TCP client/server API for C++
+﻿# TCP client/server API for C++ (with SSL/TLS support)
 [![MIT license](https://img.shields.io/badge/license-MIT-blue.svg)](http://opensource.org/licenses/MIT)
 
 
@@ -16,19 +16,111 @@ Compilation has been tested with:
 - Microsoft Visual Studio 2015 (Windows 10)
 
 ## Usage
-Create an object and provide to its constructor a callable object (for log printing) having this signature :
+Create a server or client object and provide to its constructor a callable object (for log printing)
+having this signature :
 
 ```cpp
 void(const std::string&)
 ```
 
-This section will be completed soon....
+For now, you can disable log printing by choosing the flag ASocket::SettingsFlag::NO_FLAGS when creating
+a socket or by providing a callable object that does nothing with the string message.
+
+```cpp
+#include "TCPClient.h"
+#include "TCPServer.h"
+#include "TCPSSLServer.h"
+#include "TCPSSLClient.h"
+
+auto LogPrinter = [](const std::string& strLogMsg) { std::cout << strLogMsg << std::endl;  }
+
+CTCPClient TCPClient(LogPrinter); // creates a TCP client
+CTCPServer TCPServer(LogPrinter, "12345"); // creates a TCP server to listen on port 12345
+
+CTCPSSLClient SecureTCPClient(LogPrinter); // creates an SSL/TLS TCP client
+CTCPSSLServer SecureTCPSSLServer(LogPrinter, "4242"); // creates an SSL/TLS TCP server to listen on port 4242
+```
+
+Please note that the constructor of CTCPServer or the SSL/TLS version throws only an exception in the Windows
+version when the address resolution fails, so you should use the try catch block in this particular context.
+
+To listen for an incoming TCP connection :
+
+```cpp
+ASocket::Socket ConnectedClient; // socket of the connected client, we can have a vector of them for example.
+/* blocking call, should return true if the accept is OK, ConnectedClient should also be a valid socket
+number */
+m_pTCPServer->Listen(ConnectedClient);
+```
+
+To connect to a particular server (e.g 127.0.0.1:669)
+
+```cpp
+m_pTCPClient->Connect("127.0.0.1", "669"); // should return true if the connection succeeds
+```
+
+To send/receive data to/from a client :
+
+```cpp
+const std::string strSendData = "Hello World !";
+m_pTCPServer->Send(ConnectedClient, strSendData);
+/* or */
+m_pTCPServer->Send(ConnectedClient, strSendData.c_str(), 13);
+/* or even an std::vector<char> as a second parameter */
+
+char szRcvBuffer[14] = {};
+m_pTCPServer->Receive(ConnectedClient, szRcvBuffer, 13);
+```
+
+To send/receive data to/from a server :
+
+```cpp
+const std::string strSendData = "Hello World !";
+m_pTCPClient->Send(strSendData);
+/* or */
+m_pTCPClient->Send(strSendData.c_str(), 13);
+/* or even an std::vector<char> */
+
+char szRcvBuffer[14] = {};
+m_pTCPClient->Receive(szRcvBuffer, 13);
+```
+
+To disconnect from server or client side :
+
+```cpp
+m_pTCPClient->Disconnect();
+
+m_pTCPServer->Disconnect(ConnectedClient);
+```
+
+Before using SSL/TLS secured classes, compile both library and the test program with the preprocessor macro OPENSSL.
+
+Almost all the operations look similar to the operations above for unencrypted communications, the differences are :
+
+The client socket to provide to the Listen method of an CTCPSSLServer is of type ASecureSocket::SSLSocket.
+```cpp
+ASecureSocket::SSLSocket ConnectedClient;
+```
+
+Before listenning for incoming SSL/TLS connections, you have to set the server's certificate and private key paths via
+the proper methods :
+
+```cpp
+m_pSSLTCPServer->SetSSLCertFile(SSL_CERT_FILE);
+m_pSSLTCPServer->SetSSLKeyFile(SSL_KEY_FILE);
+```
+
+You can also set CA file if you want. Otherwise, for now, passphrase must be included in the private key file.
+
+IMPORTANT: In the SSL/TLS server, ASecureSocket::SSLSocket objects must be disconnected with SSL/TLS server's
+disconnect method to free used OpenSSL context and connection structures. Otherwise, you will have memory leaks.
 
 ## Thread Safety
 
-Do not share ASocket objects across threads.
+Do not share ASocket or ASecureSocket objects across threads.
 
 ## Installation
+
 You will need CMake to generate a makefile for the static library or to build the tests/code coverage 
 program.
 
@@ -66,14 +158,12 @@ To run it, you must indicate the path of the INI conf file (see the section belo
 ./bin/[BUILD_TYPE]/test_socket /path_to_your_ini_file/conf.ini
 ```
 
-Compile both the library and test program with the macro OPENSSL to use the SSL/TLS secured classes.
-
 ## Run Unit Tests
 
 [simpleini](https://github.com/brofield/simpleini) is used to gather unit tests parameters from
 an INI configuration file. You need to fill that file with some parameters.
-You can also disable some tests (HTTP proxy for instance) and indicate
-parameters only for the enabled tests. A template of the INI file already exists under TestHTTP/
+You can also disable some tests (SSL/TLS for instance) and indicate
+parameters only for the enabled tests. A template of the INI file already exists under SocketTest/
 
 e.g. to enable SSL/TLS tests :
 
@@ -110,9 +200,9 @@ valgrind --leak-check=full ./bin/Debug/test_socket /path_to_ini_file/conf.ini
 The code coverage build doesn't use the static library but compiles and uses directly the 
 socket API in the test program.
 
-First of all, in TestHTTP/CMakeLists.txt, find and repalce :
+First of all, in SocketTest/CMakeLists.txt, find and repalce :
 ```
-"/home/amzoughi/Test/http_github.ini"
+"/home/amzoughi/Test/socket_github.ini"
 ```
 by the location of your ini file and launch the code coverage :
 
