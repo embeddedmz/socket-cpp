@@ -124,9 +124,7 @@ Do not share ASocket or ASecureSocket objects across threads.
 You will need CMake to generate a makefile for the static library or to build the tests/code coverage 
 program.
 
-Also make sure you have libcurl and Google Test installed.
-
-You can follow this script https://gist.github.com/fideloper/f72997d2e2c9fbe66459 to install libcurl.
+Also make sure you have Google Test installed.
 
 This tutorial will help you installing properly Google Test on Ubuntu: https://www.eriksmistad.no/getting-started-with-google-test-on-ubuntu/
 
