@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <cerrno>
+#include <chrono>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -49,5 +50,7 @@ int TestUPProgressCallback(void* ptr, double dTotalToDownload, double dNowDownlo
 
 long GetGMTOffset();
 bool GetFileTime(const char* const & pszFilePath, time_t& tLastModificationTime);
+
+void SleepMs(int iMilisec);
 
 #endif

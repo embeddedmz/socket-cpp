@@ -169,3 +169,8 @@ bool GetFileTime(const char* const & pszFilePath, time_t& tLastModificationTime)
 
    return false;
 }
+
+void SleepMs(int iMilisec)
+{
+   std::this_thread::sleep_for(std::chrono::milliseconds(iMilisec));
+}

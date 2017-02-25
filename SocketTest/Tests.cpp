@@ -159,10 +159,14 @@ TEST_F(TCPTest, TestLoopback)
       ASSERT_NO_THROW(m_pTCPServer.reset(new CTCPServer(PRINT_LOG, TCP_SERVER_PORT)));
 
       #ifdef WINDOWS
-      std::future<bool> futListen = std::async([&] { return m_pTCPServer->Listen(ConnectedClient); });
+      // Not always starts a new thread, std::launch::async must be passed to force it.
+      std::future<bool> futListen = std::async(std::launch::async,
+                                               [&] { return m_pTCPServer->Listen(ConnectedClient); });
       #else
       auto ListenTask = [&] { return m_pTCPServer->Listen(ConnectedClient); };
-      std::thread ListenThread(ListenTask);
+      std::packaged_task< bool(void) > packageListen { ListenTask };
+      std::future<bool> futListen = packageListen.get_future();
+      std::thread ListenThread { std::move(packageListen) }; // pack. task is not copyable
       #endif
 
       // client side
@@ -171,16 +175,16 @@ TEST_F(TCPTest, TestLoopback)
       unsigned iPeriod = 50 + (rand() % (999 - 50));
  
       // give time to let the server object reach the accept instruction.
-      #ifdef LINUX
-      usleep(500000);
-      #else
-      Sleep(500);
-      #endif
+      SleepMs(500);
 
       ASSERT_TRUE(m_pTCPClient->Connect("localhost", "6669"));
       #ifdef WINDOWS
       ASSERT_TRUE(futListen.get());
       #else
+      /* with std::thread we can't easily get the result of Listen
+       * unlike std::async/promise/packaged_task
+       */
+      ASSERT_TRUE(futListen.get());
       ListenThread.join();
       #endif
       ASSERT_FALSE(ConnectedClient == INVALID_SOCKET);
@@ -200,12 +204,8 @@ TEST_F(TCPTest, TestLoopback)
          EXPECT_GT(m_pTCPServer->Receive(ConnectedClient, szRcvBuffer, 13), 0);
          EXPECT_EQ(strSendData, szRcvBuffer);
          memset(szRcvBuffer, '\0', 14);
-      
-         #ifdef LINUX
-         usleep(iPeriod*1000);
-         #else
-         Sleep(iPeriod);
-         #endif
+
+         SleepMs(iPeriod);
       }
 
       // disconnect
@@ -259,11 +259,12 @@ TEST_F(SSLTCPTest, TestLoopback)
       //m_pSSLTCPServer->SetSSLCerthAuth(CERT_AUTH_FILE); // not mandatory
 
 #ifdef WINDOWS
-      std::future<bool> futListen = std::async([&]() -> bool
+      // Not always starts a new thread, std::launch::async must be passed to force it.
+      std::future<bool> futListen = std::async(std::launch::async,
+      [&]() -> bool
       {
          // give time to let the server object reach the accept instruction.
-         for (int iSec = 0; iSec < 1; ++iSec)
-            Sleep(1000);
+         SleepMs(1000);
 
          //m_pSSLTCPClient->SetSSLCerthAuth(CERT_AUTH_FILE); // not mandatory
          //m_pSSLTCPClient->SetSSLKeyFile(SSL_KEY_FILE); // not mandatory
@@ -273,14 +274,8 @@ TEST_F(SSLTCPTest, TestLoopback)
       auto ConnectTask = [&]() -> bool
       {
          // give time to let the server object reach the accept instruction.
-#ifdef LINUX
-         std::cout << "** Connect task : delay\n";
-         for (int iSec = 0; iSec < 2000; ++iSec)
-            usleep(1000);
-#else
-         for (int iSec = 0; iSec < 2; ++iSec)
-            Sleep(1000);
-#endif
+         std::cout << "** Connect task : delay 2 seconds\n";
+         SleepMs(2000);
          std::cout << "** Connect task : begin connect\n";
 
          //m_pSSLTCPClient->SetSSLKeyFile(SSL_KEY_FILE); // not mandatory
@@ -290,7 +285,9 @@ TEST_F(SSLTCPTest, TestLoopback)
          std::cout << "** Connect task : end connect\n";
          return bRet;
       };
-      std::thread ConnectThread(ConnectTask);
+      std::packaged_task< bool(void) > packageConnect { ConnectTask };
+      std::future<bool> futConnect = packageConnect.get_future();
+      std::thread ConnectThread { std::move(packageConnect) }; // pack. task is not copyable
 #endif
 
       m_pSSLTCPServer->Listen(ConnectedClient);
@@ -298,6 +295,10 @@ TEST_F(SSLTCPTest, TestLoopback)
 #ifdef WINDOWS
       ASSERT_TRUE(futListen.get());
 #else
+      /* with std::thread we can't easily get the result of Listen
+       * contrary to std::async/promise/packaged_task
+       */
+      ASSERT_TRUE(futConnect.get());
       ConnectThread.join();
 #endif
 
@@ -325,11 +326,7 @@ TEST_F(SSLTCPTest, TestLoopback)
          EXPECT_EQ(strSendData, szRcvBuffer);
          memset(szRcvBuffer, '\0', 14);
 
-#ifdef LINUX
-         usleep(iPeriod * 1000);
-#else
-         Sleep(iPeriod);
-#endif
+         SleepMs(iPeriod);
       }
 
       // disconnect
