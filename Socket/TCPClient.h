@@ -67,14 +67,8 @@ protected:
    //unsigned m_uRetryCount;
    //unsigned m_uRetryPeriod;
 
-   #ifdef WINDOWS
    struct addrinfo* m_pResultAddrInfo;
    struct addrinfo  m_HintsAddrInfo;
-   #else
-   struct hostent* m_pServer;
-   struct sockaddr_in m_ServAddr;
-   #endif
-
 };
 
 #endif

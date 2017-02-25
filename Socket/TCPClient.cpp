@@ -10,12 +10,8 @@ CTCPClient::CTCPClient(const LogFnCallback oLogger,
                        const SettingsFlag eSettings /*= ALL_FLAGS*/) :
    ASocket(oLogger, eSettings),
    m_eStatus(DISCONNECTED),
-   #ifdef WINDOWS
-   m_ConnectSocket(INVALID_SOCKET),
-   m_pResultAddrInfo(nullptr)
-   #else
-   m_pServer(nullptr)
-   #endif
+   m_pResultAddrInfo(nullptr),
+   m_ConnectSocket(INVALID_SOCKET)
    //m_uRetryCount(0),
    //m_uRetryPeriod(0)
 {
@@ -128,50 +124,68 @@ bool CTCPClient::Connect(const std::string& strServer, const std::string& strPor
       m_oLog(StringFormat("[TCPClient][Error] Unable to connect to server : %d", WSAGetLastError()));
 
    #else
-   // socket creation
-   m_ConnectSocket = socket(AF_INET, SOCK_STREAM, 0);
-   if (m_ConnectSocket < 0)
+   memset(&m_HintsAddrInfo, 0, sizeof m_HintsAddrInfo);
+   m_HintsAddrInfo.ai_family = AF_INET; // AF_INET or AF_INET6 to force version or use AF_UNSPEC
+   m_HintsAddrInfo.ai_socktype = SOCK_STREAM;
+   //m_HintsAddrInfo.ai_flags = 0;
+   //m_HintsAddrInfo.ai_protocol = 0; /* Any protocol */
+
+   int iAddrInfoRet = getaddrinfo(strServer.c_str(), strPort.c_str(), &m_HintsAddrInfo, &m_pResultAddrInfo);
+   if (iAddrInfoRet != 0)
    {
       if (m_eSettingsFlags & ENABLE_LOG)
-         m_oLog(StringFormat("[TCPClient][Error] opening socket: %s", strerror(errno)));
+         m_oLog(StringFormat("[TCPClient][Error] getaddrinfo failed : %s", gai_strerror(iAddrInfoRet)));
+
+      if (m_pResultAddrInfo != nullptr)
+      {
+         freeaddrinfo(m_pResultAddrInfo);
+         m_pResultAddrInfo = nullptr;
+      }
 
       return false;
    }
-   
-   int iPort = atoi(strPort.c_str());
-   m_pServer = gethostbyname(strServer.c_str());
-   if (m_pServer == nullptr)
-   {
-      if (m_eSettingsFlags & ENABLE_LOG)
-         m_oLog("[TCPClient][Error] no such host.");
 
-      return false;
-   }
-   
-   bzero(reinterpret_cast<char *>(&m_ServAddr), sizeof(m_ServAddr));
-   
-   // copy server's IP address
-   //m_ServAddr.sin_addr.s_addr = inet_addr(strServer.c_str());
-   //or use :
-   bcopy(reinterpret_cast<char *>(m_pServer->h_addr), // src
-         reinterpret_cast<char *>(&m_ServAddr.sin_addr.s_addr), // dst
-         m_pServer->h_length); // len
-   
-   m_ServAddr.sin_family = AF_INET;
-   m_ServAddr.sin_port = htons(iPort);
-   
-
-   // connexion to the server
-   int iResult = connect(m_ConnectSocket,
-                         reinterpret_cast<struct sockaddr *>(&m_ServAddr),
-                         sizeof(m_ServAddr));
-   if (iResult >= 0)
+   /* getaddrinfo() returns a list of address structures.
+    * Try each address until we successfully connect(2).
+    * If socket(2) (or connect(2)) fails, we (close the socket
+    * and) try the next address. */
+   struct addrinfo* pResPtr = m_pResultAddrInfo;
+   for (pResPtr = m_pResultAddrInfo; pResPtr != nullptr; pResPtr = pResPtr->ai_next)
    {
-      m_eStatus = CONNECTED;
-      return true;
+      // create socket
+      m_ConnectSocket = socket(pResPtr->ai_family, pResPtr->ai_socktype, pResPtr->ai_protocol);
+      if (m_ConnectSocket < 0) // or == -1
+         continue;
+      
+      // connexion to the server
+      int iConRet = connect(m_ConnectSocket, pResPtr->ai_addr, pResPtr->ai_addrlen);
+      if (iConRet >= 0) // or != -1
+      {
+         /* Success */
+         m_eStatus = CONNECTED;
+         
+         if (m_pResultAddrInfo != nullptr)
+         {
+            freeaddrinfo(m_pResultAddrInfo);
+            m_pResultAddrInfo = nullptr;
+         }
+
+         return true;
+      }
+
+      close(m_ConnectSocket);
    }
+
+   if (m_pResultAddrInfo != nullptr)
+   {
+      freeaddrinfo(m_pResultAddrInfo); /* No longer needed */
+      m_pResultAddrInfo = nullptr;
+   }
+
+   /* No address succeeded */
    if (m_eSettingsFlags & ENABLE_LOG)
-      m_oLog(StringFormat("[TCPClient][Error] connecting : %s", strerror(errno)));
+      m_oLog("[TCPClient][Error] no such host.");
+
    #endif
 
    return false;
