@@ -64,6 +64,7 @@ protected:
    }
 };
 
+#ifdef OPENSSL
 // fixture for TCP SSL tests
 class SSLTCPTest : public ::testing::Test
 {
@@ -98,6 +99,7 @@ protected:
       }
    }
 };
+#endif
 
 // Unit tests
 /*
