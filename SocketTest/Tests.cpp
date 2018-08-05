@@ -218,6 +218,88 @@ TEST_F(TCPTest, TestLoopback)
       std::cout << "TCP tests are disabled !" << std::endl;
 }
 
+TEST_F(TCPTest, TestLoopbackWithSelect)
+{
+   if (TCP_TEST_ENABLED)
+   {
+      srand(static_cast<unsigned>(time(nullptr)));
+
+      const size_t oneMeg = 1024*1024;
+      std::vector<char> OneMbData(oneMeg);
+      std::vector<char> RcvBuffer(oneMeg);
+      std::generate (OneMbData.begin(), OneMbData.end(), []{ return (std::rand() % 256); });
+
+      ASocket::Socket ConnectedClient;
+
+      ASSERT_NO_THROW(m_pTCPServer.reset(new CTCPServer(PRINT_LOG, TCP_SERVER_PORT)));
+
+      #ifdef WINDOWS
+      // Not always starts a new thread, std::launch::async must be passed to force it.
+      std::future<bool> futListen = std::async(std::launch::async,
+                                               [&]
+                                               {
+                                                  return m_pTCPServer->Listen(ConnectedClient,
+                                                                              1000);
+                                               });
+      #else
+      auto ListenTask = [&] { return m_pTCPServer->Listen(ConnectedClient, 1000); }; // 1 sec max wait
+      std::packaged_task< bool(void) > packageListen { ListenTask };
+      std::future<bool> futListen = packageListen.get_future();
+      std::thread ListenThread { std::move(packageListen) }; // pack. task is not copyable
+      #endif
+
+      // client side
+      // give time to let the server object reach the accept instruction.
+      SleepMs(500);
+
+      ASSERT_TRUE(m_pTCPClient->Connect("localhost", "6669"));
+      #ifdef WINDOWS
+      ASSERT_TRUE(futListen.get());
+      #else
+      /* with std::thread we can't easily get the result of Listen
+       * unlike std::async/promise/packaged_task
+       */
+      ASSERT_TRUE(futListen.get());
+      ListenThread.join();
+      #endif
+      ASSERT_FALSE(ConnectedClient == INVALID_SOCKET);
+
+      // server -> client
+      EXPECT_TRUE(m_pTCPServer->Send(ConnectedClient, OneMbData));
+      EXPECT_GT(m_pTCPClient->Receive(RcvBuffer.data(), oneMeg), 0);
+      EXPECT_TRUE(std::equal(OneMbData.begin(), OneMbData.end(), RcvBuffer.begin()));
+
+      std::fill(RcvBuffer.begin(), RcvBuffer.end(), 0);
+
+      // client -> server
+      EXPECT_TRUE(m_pTCPClient->Send(OneMbData));
+      EXPECT_GT(m_pTCPServer->Receive(ConnectedClient, RcvBuffer.data(), oneMeg), 0);
+      EXPECT_TRUE(std::equal(OneMbData.begin(), OneMbData.end(), RcvBuffer.begin()));
+
+      // disconnect
+      EXPECT_TRUE(m_pTCPClient->Disconnect());
+      //EXPECT_TRUE(m_pTCPServer->Disconnect(ConnectedClient)); // OK tested
+   }
+   else
+      std::cout << "TCP tests are disabled !" << std::endl;
+}
+
+TEST_F(TCPTest, TestLoopbackWithSelectFailure)
+{
+   if (TCP_TEST_ENABLED)
+   {
+      ASocket::Socket ConnectedClient;
+
+      ASSERT_NO_THROW(m_pTCPServer.reset(new CTCPServer(PRINT_LOG, TCP_SERVER_PORT)));
+
+      ASSERT_FALSE(m_pTCPServer->Listen(ConnectedClient, 3000)); // 3 sec max wait
+
+      ASSERT_TRUE(ConnectedClient == INVALID_SOCKET);
+   }
+   else
+      std::cout << "TCP tests are disabled !" << std::endl;
+}
+
 #ifdef OPENSSL
 /*
 TEST_F(SSLTCPTest, TestServer)
