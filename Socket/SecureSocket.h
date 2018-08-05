@@ -26,7 +26,7 @@ public:
       #ifndef LINUX
       SSL_V2,
       #endif
-      SSL_V3,
+      //SSL_V3, // deprecated
       TLS_V1,
       SSL_V23 /* There is no SSL protocol version named SSLv23. The SSLv23_method() API
               and its variants choose SSLv2, SSLv3, or TLSv1 for compatibility with the peer. */

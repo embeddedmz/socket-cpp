@@ -70,9 +70,10 @@ void ASecureSocket::SetUpCtxClient(SSLSocket& Socket)
          break;
       #endif
 
-      case OpenSSLProtocol::SSL_V3:
+      // deprecated
+      /*case OpenSSLProtocol::SSL_V3:
          Socket.m_pMTHDSSL = const_cast<SSL_METHOD*>(SSLv3_client_method());
-         break;
+         break;*/
 
       case OpenSSLProtocol::TLS_V1:
          Socket.m_pMTHDSSL = const_cast<SSL_METHOD*>(TLSv1_client_method());
@@ -96,9 +97,10 @@ void ASecureSocket::SetUpCtxServer(SSLSocket& Socket)
          break;
       #endif
 
-      case OpenSSLProtocol::SSL_V3:
+      // deprecated
+      /*case OpenSSLProtocol::SSL_V3:
          Socket.m_pMTHDSSL = const_cast<SSL_METHOD*>(SSLv3_server_method());
-         break;
+         break;*/
 
       case OpenSSLProtocol::TLS_V1:
          Socket.m_pMTHDSSL = const_cast<SSL_METHOD*>(TLSv1_server_method());
