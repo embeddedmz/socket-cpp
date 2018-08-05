@@ -68,6 +68,11 @@ public:
 
    inline static int GetSocketCount() { return s_iSocketCount; }
 
+   static int SelectSockets(const Socket* pSocketsToSelect, const size_t count,
+                            const size_t msec, size_t& selectedIndex);
+
+   int SelectSocket(const Socket sd, const size_t msec);
+
 protected:
    // String Helpers
    static std::string StringFormat(const std::string strFormat, ...);

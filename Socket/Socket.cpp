@@ -6,6 +6,8 @@
 
 #include "Socket.h"
 
+#include <vector>
+
 // Static members initialization
 volatile int    ASocket::s_iSocketCount = 0;
 std::mutex      ASocket::s_mtxCount;
@@ -72,30 +74,117 @@ ASocket::~ASocket()
 */
 std::string ASocket::StringFormat(const std::string strFormat, ...)
 {
-   int n = (static_cast<int>(strFormat.size())) * 2; // Reserve two times as much as the length of the strFormat
+   va_list args;
+   va_start (args, strFormat);
+   size_t len = std::vsnprintf(NULL, 0, strFormat.c_str(), args);
+   va_end (args);
+   std::vector<char> vec(len + 1);
+   va_start (args, strFormat);
+   std::vsnprintf(&vec[0], len + 1, strFormat.c_str(), args);
+   va_end (args);
+   return &vec[0];
+}
 
-   std::unique_ptr<char[]> pFormatted;
-
-   va_list ap;
-
-   while (true)
+/**
+* @brief waits for a socket's read status change
+*
+* @param [in] sd socket descriptor to be selected
+* @param [in] msec waiting period in milliseconds, a value of 0 implies no timeout
+*
+* @retval int 0 on timeout, -1 on error and 1 on success.
+*/
+int ASocket::SelectSocket(const ASocket::Socket sd, const size_t msec)
+{
+   if (sd < 0)
    {
-      pFormatted.reset(new char[n]); // Wrap the plain char array into the unique_ptr
-      strcpy(&pFormatted[0], strFormat.c_str());
+      return -1;
+   }
 
-      va_start(ap, strFormat);
-      int iFinaln = vsnprintf(&pFormatted[0], n, strFormat.c_str(), ap);
-      va_end(ap);
+   struct timeval tval;
+   struct timeval* tvalptr = nullptr;
+   fd_set rset;
+   int res;
 
-      if (iFinaln < 0 || iFinaln >= n)
+   if (msec > 0)
+   {
+      tval.tv_sec = msec / 1000;
+      tval.tv_usec = (msec % 1000) * 1000;
+      tvalptr = &tval;
+   }
+
+   FD_ZERO(&rset);
+   FD_SET(sd, &rset);
+
+   // block until socket is readable.
+   res = select(sd + 1, &rset, nullptr, nullptr, tvalptr);
+
+   if (res <= 0)
+      return res;
+
+   if (!FD_ISSET(sd, &rset))
+      return -1;
+
+   return 1;
+}
+
+/**
+* @brief waits for a set of sockets read status change
+*
+* @param [in] pSocketsToSelect pointer to an array of socket descriptors to be selected
+* @param [in] count elements count of pSocketsToSelect
+* @param [in] msec waiting period in milliseconds, a value of 0 implies no timeout
+* @param [out] selectedIndex index of the socket that is ready to be read
+*
+* @retval int 0 on timeout, -1 on error and 1 on success.
+*/
+int ASocket::SelectSockets(const ASocket::Socket* pSocketsToSelect, const size_t count,
+                           const size_t msec, size_t& selectedIndex)
+{
+   if (!pSocketsToSelect || count == 0)
+   {
+      return -1;
+   }
+
+   fd_set rset;
+   int res = -1;
+
+   struct timeval tval;
+   struct timeval* tvalptr = nullptr;
+   if (msec > 0)
+   {
+      tval.tv_sec = msec / 1000;
+      tval.tv_usec = (msec % 1000) * 1000;
+      tvalptr = &tval;
+   }
+
+   FD_ZERO(&rset);
+
+   int max_fd = -1;
+   for (size_t i = 0; i < count; i++)
+   {
+      FD_SET(pSocketsToSelect[i], &rset);
+
+      if (pSocketsToSelect[i] > max_fd)
       {
-         n += abs(iFinaln - n + 1);
-      }
-      else
-      {
-         break;
+         max_fd = pSocketsToSelect[i];
       }
    }
 
-   return std::string(pFormatted.get());
+   // block until one socket is ready to read.
+   res = select(max_fd + 1, &rset, nullptr, nullptr, tvalptr);
+
+   if (res <= 0)
+      return res;
+
+   // find the first socket which has some activity.
+   for (size_t i = 0; i < count; i++)
+   {
+      if (FD_ISSET(pSocketsToSelect[i], &rset))
+      {
+         selectedIndex = i;
+         return 1;
+      }
+   }
+
+   return -1;
 }
