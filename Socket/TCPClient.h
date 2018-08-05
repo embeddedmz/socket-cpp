@@ -53,7 +53,9 @@ public:
    bool Send(const char* pData, const size_t uSize) const; // send data to a TCP server
    bool Send(const std::string& strData) const;
    bool Send(const std::vector<char>& Data) const;
-   int  Receive(char* pData, const size_t uSize) const;
+   int  Receive(char* pData, const size_t uSize, bool bReadFully = true) const;
+
+   bool IsConnected() const { return m_eStatus == CONNECTED; }
 	
 protected:
    enum SocketStatus

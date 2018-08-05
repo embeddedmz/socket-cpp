@@ -63,9 +63,24 @@ bool CTCPClient::Connect(const std::string& strServer, const std::string& strPor
       if (m_eSettingsFlags & ENABLE_LOG)
          m_oLog(StringFormat("[TCPClient][Error] socket failed : %d", WSAGetLastError()));
 
-      closesocket(m_ConnectSocket);
       freeaddrinfo(m_pResultAddrInfo);
       m_pResultAddrInfo = nullptr;
+      return false;
+   }
+
+   // Fixes windows 0.2 second delay sending (buffering) data.
+   int on = 1;
+   int iErr;
+   
+   iErr = setsockopt(m_ConnectSocket, IPPROTO_TCP, TCP_NODELAY, (char*)&on, sizeof(on));
+   if (iErr == INVALID_SOCKET)
+   {
+      if (m_eSettingsFlags & ENABLE_LOG)
+         m_oLog("[TCPClient][Error] Socket error in call to setsockopt");
+
+      closesocket(m_ConnectSocket);
+      freeaddrinfo(m_pResultAddrInfo); m_pResultAddrInfo = nullptr;
+
       return false;
    }
    
@@ -193,6 +208,9 @@ bool CTCPClient::Connect(const std::string& strServer, const std::string& strPor
 
 bool CTCPClient::Send(const char* pData, const size_t uSize) const
 {
+   if (!pData || !uSize)
+      return false;
+
    if (m_eStatus != CONNECTED)
    {
       if (m_eSettingsFlags & ENABLE_LOG)
@@ -201,27 +219,23 @@ bool CTCPClient::Send(const char* pData, const size_t uSize) const
       return false;
    }
 
-   int iResult = 0;
-   #ifdef WINDOWS
-   iResult = send(m_ConnectSocket, pData, uSize, 0);
-   if (iResult == SOCKET_ERROR)
+   int total = 0;
+   do
    {
-      if (m_eSettingsFlags & ENABLE_LOG)
-         m_oLog(StringFormat("[TCPClient][Error] send failed : %d", WSAGetLastError()));
-      //Disconnect();
+      const int flags = 0;
+      int nSent;
 
-      return false;
-   }
-   #else
-   iResult = write(m_ConnectSocket, pData, uSize);
-   if (iResult < 0) 
-   {
-      if (m_eSettingsFlags & ENABLE_LOG)
-         m_oLog(StringFormat("[TCPClient][Error] writing to socket : %s", strerror(errno)));
+      nSent = send(m_ConnectSocket, pData + total, uSize - total, flags);
 
-      return false;
-   }
-   #endif
+      if (nSent < 0)
+      {
+         if (m_eSettingsFlags & ENABLE_LOG)
+            m_oLog("[TCPClient][Error] Socket error in call to send.");
+
+         return false;
+      }
+      total += nSent;
+   } while(total < uSize);
    
    return true;
 }
@@ -240,8 +254,11 @@ bool CTCPClient::Send(const std::vector<char>& Data) const
  * ret == 0  : connection closed
  * ret < 0   : recv failed
  */
-int CTCPClient::Receive(char* pData, const size_t uSize) const
+int CTCPClient::Receive(char* pData, const size_t uSize, bool bReadFully /*= true*/) const
 {
+   if (!pData || !uSize)
+      return false;
+
    if (m_eStatus != CONNECTED)
    {
       if (m_eSettingsFlags & ENABLE_LOG)
@@ -250,26 +267,44 @@ int CTCPClient::Receive(char* pData, const size_t uSize) const
       return -1;
    }
 
-   int iBytesRcvd = 0;
-   
    #ifdef WINDOWS
-   iBytesRcvd = recv(m_ConnectSocket, pData, uSize, 0);
-   if (iBytesRcvd < 0)
-   {
-      if (m_eSettingsFlags & ENABLE_LOG)
-         m_oLog(StringFormat("[TCPClient][Error] recv failed : %d", WSAGetLastError()));
-   }
-   #else
-   //bzero(pData, uSize);
-   iBytesRcvd = read(m_ConnectSocket, pData, uSize);
-   if (iBytesRcvd < 0)
-   {
-      if (m_eSettingsFlags & ENABLE_LOG)
-         m_oLog(StringFormat("[TCPClient][Error] reading from socket : %s", strerror(errno)));
-   }
+   int tries = 0;
    #endif
 
-   return iBytesRcvd;
+   int total = 0;
+   do
+   {
+      int nRecvd = recv(m_ConnectSocket, pData + total, uSize - total, 0);
+
+      if (nRecvd == 0)
+      {
+         // peer shut down
+         return 0;
+      }
+      
+      #ifdef WINDOWS
+      if ((nRecvd < 0) && (WSAGetLastError() == WSAENOBUFS))
+      {
+         // On long messages, Windows recv sometimes fails with WSAENOBUFS, but
+         // will work if you try again.
+         if ((tries++ < 1000))
+         {
+           Sleep(1);
+           continue;
+         }
+
+         if (m_eSettingsFlags & ENABLE_LOG)
+            m_oLog("[TCPClient][Error] Socket error in call to recv.");
+
+         return 0;
+      }
+      #endif
+
+      total += nRecvd;
+
+   } while(bReadFully && (total < uSize));
+   
+   return total;
 }
 
 bool CTCPClient::Disconnect()
@@ -309,6 +344,4 @@ CTCPClient::~CTCPClient()
 {
    if (m_eStatus == CONNECTED)
       Disconnect();
-
-
 }
