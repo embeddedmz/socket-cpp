@@ -22,6 +22,9 @@
 
 #include "Socket.h"
 
+#include <limits>
+#define ACCEPT_WAIT_INF_DELAY std::numeric_limits<size_t>::max()
+
 class CTCPServer : public ASocket
 {	
 public:
@@ -37,12 +40,13 @@ public:
    CTCPServer(const CTCPServer&) = delete;
    CTCPServer& operator=(const CTCPServer&) = delete;
 
-   /* returns the socket of the accepted client */
-   bool Listen(Socket& ClientSocket);
+   /* returns the socket of the accepted client, the waiting period can be set */
+   bool Listen(Socket& ClientSocket, size_t msec = ACCEPT_WAIT_INF_DELAY);
    
    int Receive(const Socket ClientSocket,
                char* pData,
-               const size_t uSize) const;
+               const size_t uSize,
+               bool bReadFully = true) const;
 
    bool Send(const Socket ClientSocket, const char* pData, const size_t uSize) const;
    bool Send(const Socket ClientSocket, const std::string& strData) const;

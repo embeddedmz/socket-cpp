@@ -6,7 +6,6 @@
 
 #include "TCPServer.h"
 
-
 CTCPServer::CTCPServer(const LogFnCallback oLogger,
                        /*const std::string& strAddr,*/
                        const std::string& strPort,
@@ -64,7 +63,7 @@ CTCPServer::CTCPServer(const LogFnCallback oLogger,
 }
 
 // returns the socket of the accepted client
-bool CTCPServer::Listen(ASocket::Socket& ClientSocket)
+bool CTCPServer::Listen(ASocket::Socket& ClientSocket, size_t msec /*= ACCEPT_WAIT_INF_DELAY*/)
 {
    ClientSocket = INVALID_SOCKET;
 
@@ -82,6 +81,24 @@ bool CTCPServer::Listen(ASocket::Socket& ClientSocket)
             m_oLog(StringFormat("[TCPServer][Error] socket failed : %d", WSAGetLastError()));
          freeaddrinfo(m_pResultAddrInfo);
          m_pResultAddrInfo = nullptr;
+         return false;
+      }
+
+      // Allow the socket to be bound to an address that is already in use
+      int opt = 1;
+      int iErr = 0;
+
+      iErr = setsockopt(m_ListenSocket, SOL_SOCKET, SO_REUSEADDR, reinterpret_cast<char*>(&opt), sizeof(int));
+      if (iErr < 0)
+      {
+         if (m_eSettingsFlags & ENABLE_LOG)
+            m_oLog("[TCPServer][Error] CTCPServer::Listen : Socket error in call to setsockopt.");
+
+         closesocket(m_ListenSocket);
+         freeaddrinfo(m_pResultAddrInfo); m_pResultAddrInfo = nullptr;
+
+         m_ListenSocket = INVALID_SOCKET;
+
          return false;
       }
 
@@ -110,7 +127,24 @@ bool CTCPServer::Listen(ASocket::Socket& ClientSocket)
       {
          if (m_eSettingsFlags & ENABLE_LOG)
             m_oLog(StringFormat("[TCPServer][Error] opening socket : %s", strerror(errno)));
+
          m_ListenSocket = INVALID_SOCKET;
+         return false;
+      }
+
+      // Allow the socket to be bound to an address that is already in use
+      int opt = 1;
+      int iErr = 0;
+
+      iErr = setsockopt(m_ListenSocket, SOL_SOCKET, SO_REUSEADDR, reinterpret_cast<char*>(&opt), sizeof(int));
+      if (iErr < 0)
+      {
+         if (m_eSettingsFlags & ENABLE_LOG)
+            m_oLog("[TCPServer][Error] CTCPServer::Listen : Socket error in call to setsockopt.");
+
+         close(m_ListenSocket);
+         m_ListenSocket = INVALID_SOCKET;
+
          return false;
       }
 
@@ -130,7 +164,6 @@ bool CTCPServer::Listen(ASocket::Socket& ClientSocket)
       #endif
    }
 
-
    #ifdef WINDOWS
    sockaddr addrClient;
    int iResult;
@@ -143,6 +176,26 @@ bool CTCPServer::Listen(ASocket::Socket& ClientSocket)
       closesocket(m_ListenSocket);
       m_ListenSocket = INVALID_SOCKET;
       return false;
+   }
+
+   if (msec != ACCEPT_WAIT_INF_DELAY)
+   {
+      int ret = SelectSocket(m_ListenSocket, msec);
+      if (ret == 0)
+      {
+         if (m_eSettingsFlags & ENABLE_LOG)
+            m_oLog("[TCPServer][Error] CTCPServer::Listen : Timed out.");
+
+         return false;
+      }
+
+      if (ret == -1)
+      {
+         if (m_eSettingsFlags & ENABLE_LOG)
+            m_oLog("[TCPServer][Error] CTCPServer::Listen : Error selecting socket.");
+
+         return false;
+      }
    }
 
    // accept client connection, the returned socket will be used for I/O operations
@@ -184,6 +237,26 @@ bool CTCPServer::Listen(ASocket::Socket& ClientSocket)
       return false;
    }
 
+   if (msec != ACCEPT_WAIT_INF_DELAY)
+   {
+      int ret = SelectSocket(m_ListenSocket, msec);
+      if (ret == 0)
+      {
+         if (m_eSettingsFlags & ENABLE_LOG)
+            m_oLog("[TCPServer][Error] CTCPServer::Listen : Timed out.");
+
+         return false;
+      }
+
+      if (ret == -1)
+      {
+         if (m_eSettingsFlags & ENABLE_LOG)
+            m_oLog("[TCPServer][Error] CTCPServer::Listen : Error selecting socket.");
+
+         return false;
+      }
+   }
+
    struct sockaddr_in ClientAddr;
    // The accept() call actually accepts an incoming connection
    socklen_t uClientLen = sizeof(ClientAddr);
@@ -218,55 +291,77 @@ bool CTCPServer::Listen(ASocket::Socket& ClientSocket)
  * ret == 0  : connection closed
  * ret < 0   : recv failed
  */
-int CTCPServer::Receive(const CTCPServer::Socket ClientSocket, char* pData, const size_t uSize) const
+int CTCPServer::Receive(const CTCPServer::Socket ClientSocket,
+                        char* pData,
+                        const size_t uSize,
+                        bool bReadFully /*= true*/) const
 {
-   int iBytesRcvd;
+   if (ClientSocket < 0 || !pData || !uSize)
+      return false;
 
    #ifdef WINDOWS
-   iBytesRcvd = recv(ClientSocket, pData, uSize, 0);
-   if (iBytesRcvd < 0)
-   {
-      if (m_eSettingsFlags & ENABLE_LOG)
-         m_oLog(StringFormat("[TCPServer][Error] recv failed : %d", WSAGetLastError()));
-   }
-   #else
-   iBytesRcvd = read(ClientSocket, pData, uSize);
-   if (iBytesRcvd < 0)
-   {
-      if (m_eSettingsFlags & ENABLE_LOG)
-         m_oLog(StringFormat("[TCPServer][Error] reading from socket : %s", strerror(errno)));
-   }
+   int tries = 0;
    #endif
 
-   return iBytesRcvd;
+   int total = 0;
+   do
+   {
+      int nRecvd = recv(ClientSocket, pData + total, uSize - total, 0);
+
+      if (nRecvd == 0)
+      {
+         // peer shut down
+         return 0;
+      }
+
+      #ifdef WINDOWS
+      if ((nRecvd < 0) && (WSAGetLastError() == WSAENOBUFS))
+      {
+         // On long messages, Windows recv sometimes fails with WSAENOBUFS, but
+         // will work if you try again.
+         if ((tries++ < 1000))
+         {
+           Sleep(1);
+           continue;
+         }
+
+         if (m_eSettingsFlags & ENABLE_LOG)
+            m_oLog("[TCPServer][Error] Socket error in call to recv.");
+
+         return 0;
+      }
+      #endif
+
+      total += nRecvd;
+
+   } while(bReadFully && (total < uSize));
+
+   return total;
 }
 
 bool CTCPServer::Send(const Socket ClientSocket, const char* pData, size_t uSize) const
 {
-   int iResult = 0;
-
-   #ifdef WINDOWS
-   iResult = send(ClientSocket, pData, uSize, 0);
-   if (iResult == SOCKET_ERROR)
-   {
-      if (m_eSettingsFlags & ENABLE_LOG)
-         m_oLog(StringFormat("[TCPServer][Error] send failed : %d", WSAGetLastError()));
-      //Disconnect();
+   if (ClientSocket < 0 || !pData || !uSize)
       return false;
-   }
-   #else
 
-   //send(ClientSocket, pData, uSize, 0);
-   iResult = write(ClientSocket, pData, uSize);
-   if (iResult < 0) 
+   int total = 0;
+   do
    {
-      if (m_eSettingsFlags & ENABLE_LOG)
-         m_oLog(StringFormat("[TCPServer][Error] writing to socket : %s", strerror(errno)));
+      const int flags = 0;
+      int nSent;
 
-      return false;
-   }
-   #endif
-   
+      nSent = send(ClientSocket, pData + total, uSize - total, flags);
+
+      if (nSent < 0)
+      {
+         if (m_eSettingsFlags & ENABLE_LOG)
+            m_oLog("[TCPServer][Error] Socket error in call to send.");
+
+         return false;
+      }
+      total += nSent;
+   } while(total < uSize);
+
    return true;
 }
 
