@@ -53,6 +53,12 @@ number */
 m_pTCPServer->Listen(ConnectedClient);
 ```
 
+A wait period (in milliseconds) can be set, to avoid waiting indefinitely for a client :
+
+```cpp
+m_pTCPServer->Listen(ConnectedClient, 1000); // waits for 1 second. Will return true, if a client connected to the server
+```
+
 To connect to a particular server (e.g 127.0.0.1:669)
 
 ```cpp
