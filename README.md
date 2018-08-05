@@ -112,6 +112,12 @@ m_pSSLTCPServer->SetSSLKeyFile(SSL_KEY_FILE);
 
 You can also set CA file if you want. Otherwise, for now, passphrase must be included in the private key file.
 
+To create SSL test files, you can use this command :
+
+```Shell
+openssl req -newkey rsa:2048 -new -nodes -x509 -days 3650 -keyout key.pem -out cert.pem
+```
+
 IMPORTANT: In the SSL/TLS server, ASecureSocket::SSLSocket objects must be disconnected with SSL/TLS server's
 disconnect method to free used OpenSSL context and connection structures. Otherwise, you will have memory leaks.
 
