@@ -22,6 +22,11 @@
 
 #include "Socket.h"
 
+#ifdef WINDOWS
+#undef min
+#undef max
+#endif
+
 #include <limits>
 #define ACCEPT_WAIT_INF_DELAY std::numeric_limits<size_t>::max()
 
