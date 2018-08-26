@@ -311,7 +311,7 @@ int CTCPServer::Receive(const CTCPServer::Socket ClientSocket,
       if (nRecvd == 0)
       {
          // peer shut down
-         return 0;
+         break;
       }
 
       #ifdef WINDOWS
@@ -328,13 +328,13 @@ int CTCPServer::Receive(const CTCPServer::Socket ClientSocket,
          if (m_eSettingsFlags & ENABLE_LOG)
             m_oLog("[TCPServer][Error] Socket error in call to recv.");
 
-         return 0;
+         break;
       }
       #endif
 
       total += nRecvd;
 
-   } while(bReadFully && (total < uSize));
+   } while (bReadFully && (total < uSize));
 
    return total;
 }

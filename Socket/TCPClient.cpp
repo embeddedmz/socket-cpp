@@ -279,7 +279,7 @@ int CTCPClient::Receive(char* pData, const size_t uSize, bool bReadFully /*= tru
       if (nRecvd == 0)
       {
          // peer shut down
-         return 0;
+         break;
       }
       
       #ifdef WINDOWS
@@ -296,13 +296,13 @@ int CTCPClient::Receive(char* pData, const size_t uSize, bool bReadFully /*= tru
          if (m_eSettingsFlags & ENABLE_LOG)
             m_oLog("[TCPClient][Error] Socket error in call to recv.");
 
-         return 0;
+         break;
       }
       #endif
 
       total += nRecvd;
 
-   } while(bReadFully && (total < uSize));
+   } while (bReadFully && (total < uSize));
    
    return total;
 }

@@ -22,9 +22,6 @@
 
 #include "Socket.h"
 
-#include <limits>
-#define ACCEPT_WAIT_INF_DELAY std::numeric_limits<size_t>::max()
-
 class CTCPServer : public ASocket
 {	
 public:
