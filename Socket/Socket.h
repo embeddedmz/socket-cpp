@@ -38,6 +38,9 @@
 #include <unistd.h>
 #endif
 
+#include <limits>
+#define ACCEPT_WAIT_INF_DELAY std::numeric_limits<size_t>::max()
+
 class ASocket
 {
 public:
