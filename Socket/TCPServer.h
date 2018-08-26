@@ -22,6 +22,11 @@
 
 #include "Socket.h"
 
+#ifdef WINDOWS
+#undef min
+#undef max
+#endif
+
 class CTCPServer : public ASocket
 {	
 public:
