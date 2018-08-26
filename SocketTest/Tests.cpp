@@ -332,8 +332,13 @@ TEST_F(SSLTCPTest, TestLoopback)
 {
    if (SECURE_TCP_TEST_ENABLED)
    {
-      const std::string strSendData = "Hello World !";
-      char szRcvBuffer[14] = {};
+      srand(static_cast<unsigned>(time(nullptr)));
+
+      const size_t oneMeg = 1024*1024;
+      std::vector<char> OneMbData(oneMeg);
+      std::vector<char> RcvBuffer(oneMeg);
+      std::generate (OneMbData.begin(), OneMbData.end(), []{ return (std::rand() % 256); });
+
       ASecureSocket::SSLSocket ConnectedClient;
 
       ASSERT_NO_THROW(m_pSSLTCPServer.reset(new CTCPSSLServer(PRINT_LOG, SECURE_TCP_SERVER_PORT)));
@@ -389,29 +394,18 @@ TEST_F(SSLTCPTest, TestLoopback)
       ASSERT_FALSE(ConnectedClient.m_pSSL == nullptr);
       ASSERT_FALSE(ConnectedClient.m_pCTXSSL == nullptr);
       ASSERT_FALSE(ConnectedClient.m_SockFd == INVALID_SOCKET);
+      
+      // server -> client
+      EXPECT_TRUE(m_pSSLTCPServer->Send(ConnectedClient, OneMbData));
+      EXPECT_GT(m_pSSLTCPClient->Receive(RcvBuffer.data(), oneMeg), 0);
+      EXPECT_TRUE(std::equal(OneMbData.begin(), OneMbData.end(), RcvBuffer.begin()));
 
-      // perform 3 checks
-      // client side
-      // send period between 50 and 999 ms
-      srand(static_cast<unsigned>(time(nullptr)));
-      unsigned iPeriod = 50 + (rand() % (999 - 50));
-      unsigned uCount = 0;
-      while (uCount++ < 3)
-      {
-         // server -> client
-         EXPECT_TRUE(m_pSSLTCPServer->Send(ConnectedClient, strSendData));
-         EXPECT_GT(m_pSSLTCPClient->Receive(szRcvBuffer, 13), 0);
-         EXPECT_EQ(strSendData, szRcvBuffer);
-         memset(szRcvBuffer, '\0', 14);
+      std::fill(RcvBuffer.begin(), RcvBuffer.end(), 0);
 
-         // client -> server
-         EXPECT_TRUE(m_pSSLTCPClient->Send(strSendData));
-         EXPECT_GT(m_pSSLTCPServer->Receive(ConnectedClient, szRcvBuffer, 13), 0);
-         EXPECT_EQ(strSendData, szRcvBuffer);
-         memset(szRcvBuffer, '\0', 14);
-
-         SleepMs(iPeriod);
-      }
+      // client -> server
+      EXPECT_TRUE(m_pSSLTCPClient->Send(OneMbData));
+      EXPECT_GT(m_pSSLTCPServer->Receive(ConnectedClient, RcvBuffer.data(), oneMeg), 0);
+      EXPECT_TRUE(std::equal(OneMbData.begin(), OneMbData.end(), RcvBuffer.begin()));
 
       // disconnect
       EXPECT_TRUE(m_pSSLTCPClient->Disconnect());
