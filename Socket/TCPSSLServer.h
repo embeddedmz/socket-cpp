@@ -30,11 +30,10 @@ public:
    CTCPSSLServer(const CTCPSSLServer&) = delete;
    CTCPSSLServer& operator=(const CTCPSSLServer&) = delete;
 
-   bool Listen(SSLSocket& ClientSocket);
+   bool Listen(SSLSocket& ClientSocket, size_t msec = ACCEPT_WAIT_INF_DELAY);
 
-   int Receive(const SSLSocket& ClientSocket,
-      char* pData,
-      const size_t uSize) const;
+   int Receive(const SSLSocket& ClientSocket, char* pData,
+               const size_t uSize, bool bReadFully = true) const;
 
    bool Send(const SSLSocket& ClientSocket, const char* pData, const size_t uSize) const;
    bool Send(const SSLSocket& ClientSocket, const std::string& strData) const;

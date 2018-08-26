@@ -144,17 +144,23 @@ bool CTCPSSLClient::Send(const char* pData, const size_t uSize) const
       return false;
    }
 
-   /* encrypt & send message */
-   int iBytesSent = SSL_write(m_SSLConnectSocket.m_pSSL, pData, uSize);
-   if (iBytesSent <= 0)
+   int total = 0;
+   do
    {
-      if (m_eSettingsFlags & ENABLE_LOG)
-         m_oLog(StringFormat("[TCPSSLClient][Error] SSL_write failed (Error=%d | %s)",
-            iBytesSent, GetSSLErrorString(SSL_get_error(m_SSLConnectSocket.m_pSSL, iBytesSent))));
+      /* encrypt & send message */
+      int nSent = SSL_write(m_SSLConnectSocket.m_pSSL, pData + total, uSize - total);
+      if (nSent <= 0)
+      {
+         if (m_eSettingsFlags & ENABLE_LOG)
+            m_oLog(StringFormat("[TCPSSLClient][Error] SSL_write failed (Error=%d | %s)",
+                  nSent, GetSSLErrorString(SSL_get_error(m_SSLConnectSocket.m_pSSL, nSent))));
 
-      return false;
-   }
+         return false;
+      }
 
+      total += nSent;
+   } while (total < uSize);
+   
    return true;
 }
 
@@ -168,7 +174,7 @@ bool CTCPSSLClient::Send(const std::vector<char>& Data) const
    return Send(Data.data(), Data.size());
 }
 
-int CTCPSSLClient::Receive(char* pData, const size_t uSize) const
+int CTCPSSLClient::Receive(char* pData, const size_t uSize, bool bReadFully /*= true*/) const
 {
    if (m_TCPClient.m_eStatus != CTCPClient::CONNECTED)
    {
@@ -178,15 +184,25 @@ int CTCPSSLClient::Receive(char* pData, const size_t uSize) const
       return -1;
    }
 
-   int iBytesRcvd = SSL_read(m_SSLConnectSocket.m_pSSL, pData, uSize);
-   if (iBytesRcvd <= 0)
+   int total = 0;
+   do
    {
-      if (m_eSettingsFlags & ENABLE_LOG)
-         m_oLog(StringFormat("[TCPSSLClient][Error] SSL_read failed (Error=%d | %s)",
-            iBytesRcvd, GetSSLErrorString(SSL_get_error(m_SSLConnectSocket.m_pSSL, iBytesRcvd))));
-   }
+      int nRecvd = SSL_read(m_SSLConnectSocket.m_pSSL, pData + total, uSize - total);
 
-   return iBytesRcvd;
+      if (nRecvd <= 0)
+      {
+         if (m_eSettingsFlags & ENABLE_LOG)
+            m_oLog(StringFormat("[TCPSSLClient][Error] SSL_read failed (Error=%d | %s)",
+                  nRecvd, GetSSLErrorString(SSL_get_error(m_SSLConnectSocket.m_pSSL, nRecvd))));
+         
+         break;
+      }
+
+      total += nRecvd;
+
+   } while (bReadFully && (total < uSize));
+   
+   return total;
 }
 
 bool CTCPSSLClient::Disconnect()

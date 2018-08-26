@@ -36,7 +36,7 @@ public:
    bool Send(const std::vector<char>& Data) const;
 
    /* receive data from a TCP SSL server */
-   int  Receive(char* pData, const size_t uSize) const;
+   int  Receive(char* pData, const size_t uSize, bool bReadFully = true) const;
 
 protected:
    CTCPClient  m_TCPClient;

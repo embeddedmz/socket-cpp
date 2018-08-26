@@ -19,9 +19,9 @@ CTCPSSLServer::CTCPSSLServer(const LogFnCallback oLogger,
 }
 
 // returns the socket of the accepted client
-bool CTCPSSLServer::Listen(SSLSocket& ClientSocket)
+bool CTCPSSLServer::Listen(SSLSocket& ClientSocket, size_t msec /*= ACCEPT_WAIT_INF_DELAY*/)
 {
-   if (m_TCPServer.Listen(ClientSocket.m_SockFd))
+   if (m_TCPServer.Listen(ClientSocket.m_SockFd, msec))
    {
       SetUpCtxServer(ClientSocket);
 
@@ -123,20 +123,32 @@ bool CTCPSSLServer::Listen(SSLSocket& ClientSocket)
 
 /* When an SSL_read() operation has to be repeated because of SSL_ERROR_WANT_READ or SSL_ERROR_WANT_WRITE,
  * it must be repeated with the same arguments.*/
-int CTCPSSLServer::Receive(const SSLSocket& ClientSocket, char* pData, const size_t uSize) const
+int CTCPSSLServer::Receive(const SSLSocket& ClientSocket, 
+                           char* pData,
+                           const size_t uSize,
+                           bool bReadFully /*= true*/) const
 {
-   int iBytesRcvd = SSL_read(ClientSocket.m_pSSL, pData, uSize);
-
-   if (iBytesRcvd < 0)
+   int total = 0;
+   do
    {
-      if (m_eSettingsFlags & ENABLE_LOG)
-         m_oLog(StringFormat("[TCPSSLServer][Error] SSL_read failed (Error=%d | %s)",
-            iBytesRcvd, GetSSLErrorString(SSL_get_error(ClientSocket.m_pSSL, iBytesRcvd))));
+      int nRecvd = SSL_read(ClientSocket.m_pSSL, pData + total, uSize - total);
 
-      //ERR_print_errors_fp(stdout);
-   }
+      if (nRecvd <= 0)
+      {
+         if (m_eSettingsFlags & ENABLE_LOG)
+            m_oLog(StringFormat("[TCPSSLServer][Error] SSL_read failed (Error=%d | %s)",
+                  nRecvd, GetSSLErrorString(SSL_get_error(ClientSocket.m_pSSL, nRecvd))));
 
-   return iBytesRcvd;
+          //ERR_print_errors_fp(stdout);
+
+          break;
+      }
+
+      total += nRecvd;
+
+   } while(bReadFully && (total < uSize));
+
+   return total;
 }
 
 /* When an SSL_write() operation has to be repeated because of SSL_ERROR_WANT_READ or SSL_ERROR_WANT_WRITE,
@@ -144,16 +156,23 @@ int CTCPSSLServer::Receive(const SSLSocket& ClientSocket, char* pData, const siz
  * When calling SSL_write() with uSize=0 bytes to be sent the behaviour is undefined. */
 bool CTCPSSLServer::Send(const SSLSocket& ClientSocket, const char* pData, const size_t uSize) const
 {
-   int iBytesSent = SSL_write(ClientSocket.m_pSSL, pData, uSize);
-
-   if (iBytesSent <= 0)
+   int total = 0;
+   do
    {
-      if (m_eSettingsFlags & ENABLE_LOG)
-         m_oLog(StringFormat("[TCPSSLServer][Error] SSL_write failed (Error=%d | %s)",
-            iBytesSent, GetSSLErrorString(SSL_get_error(ClientSocket.m_pSSL, iBytesSent))));
+      int nSent;
 
-      return false;
-   }
+      nSent = SSL_write(ClientSocket.m_pSSL, pData + total, uSize - total);
+
+      if (nSent <= 0)
+      {
+         if (m_eSettingsFlags & ENABLE_LOG)
+            m_oLog(StringFormat("[TCPSSLServer][Error] SSL_write failed (Error=%d | %s).",
+            nSent, GetSSLErrorString(SSL_get_error(ClientSocket.m_pSSL, nSent))));
+
+         return false;
+      }
+      total += nSent;
+   } while (total < uSize);
 
    return true;
 }
