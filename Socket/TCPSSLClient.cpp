@@ -176,14 +176,18 @@ bool CTCPSSLClient::Send(const std::vector<char>& Data) const
 
 bool CTCPSSLClient::HasPending()
 {
-   int pend = SSL_has_pending(m_SSLConnectSocket.m_pSSL);
+   int pend;
+
+   pend = SSL_has_pending(m_SSLConnectSocket.m_pSSL);
 
    return pend == 1;
 }
 
 int CTCPSSLClient::PendingBytes()
 {
-   int nPend = SSL_pending(m_SSLConnectSocket.m_pSSL);
+   int nPend;
+
+   nPend = SSL_pending(m_SSLConnectSocket.m_pSSL);
 
    return nPend;
 }
