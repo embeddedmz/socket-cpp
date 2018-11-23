@@ -121,6 +121,20 @@ bool CTCPSSLServer::Listen(SSLSocket& ClientSocket, size_t msec /*= ACCEPT_WAIT_
    return false;
 }
 
+bool CTCPSSLServer::HasPending(const SSLSocket& ClientSocket)
+{
+   int pend = SSL_has_pending(ClientSocket.m_pSSL);
+
+   return pend == 1;
+}
+
+int CTCPSSLServer::PendingBytes(const SSLSocket& ClientSocket)
+{
+   int nPend = SSL_pending(ClientSocket.m_pSSL);
+
+   return nPend;
+}
+
 /* When an SSL_read() operation has to be repeated because of SSL_ERROR_WANT_READ or SSL_ERROR_WANT_WRITE,
  * it must be repeated with the same arguments.*/
 int CTCPSSLServer::Receive(const SSLSocket& ClientSocket, 

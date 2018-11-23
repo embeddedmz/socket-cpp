@@ -174,6 +174,20 @@ bool CTCPSSLClient::Send(const std::vector<char>& Data) const
    return Send(Data.data(), Data.size());
 }
 
+bool CTCPSSLClient::HasPending()
+{
+   int pend = SSL_has_pending(m_SSLConnectSocket.m_pSSL);
+
+   return pend == 1;
+}
+
+int CTCPSSLClient::PendingBytes()
+{
+   int nPend = SSL_pending(m_SSLConnectSocket.m_pSSL);
+
+   return nPend;
+}
+
 int CTCPSSLClient::Receive(char* pData, const size_t uSize, bool bReadFully /*= true*/) const
 {
    if (m_TCPClient.m_eStatus != CTCPClient::CONNECTED)

@@ -32,6 +32,8 @@ public:
 
    bool Listen(SSLSocket& ClientSocket, size_t msec = ACCEPT_WAIT_INF_DELAY);
 
+   bool HasPending(const SSLSocket& ClientSocket);
+   int PendingBytes(const SSLSocket& ClientSocket);
    int Receive(const SSLSocket& ClientSocket, char* pData,
                const size_t uSize, bool bReadFully = true) const;
 
