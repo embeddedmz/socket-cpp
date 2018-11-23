@@ -21,7 +21,7 @@ class CTCPSSLServer : public ASecureSocket
 public:
    explicit CTCPSSLServer(const LogFnCallback oLogger,
                           const std::string& strPort,
-                          const OpenSSLProtocol eSSLVersion = OpenSSLProtocol::SSL_V23,
+                          const OpenSSLProtocol eSSLVersion = OpenSSLProtocol::TLS,
                           const SettingsFlag eSettings = ALL_FLAGS)
                           throw (EResolveError);
 

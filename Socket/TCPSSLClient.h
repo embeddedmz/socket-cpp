@@ -17,7 +17,7 @@ class CTCPSSLClient : public ASecureSocket
 {
 public:
    explicit CTCPSSLClient(const LogFnCallback oLogger,
-                          const OpenSSLProtocol eSSLVersion = OpenSSLProtocol::SSL_V23,
+                          const OpenSSLProtocol eSSLVersion = OpenSSLProtocol::TLS,
                           const SettingsFlag eSettings = ALL_FLAGS);
    ~CTCPSSLClient() override;
 

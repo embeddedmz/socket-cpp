@@ -28,8 +28,9 @@ public:
       #endif
       //SSL_V3, // deprecated
       TLS_V1,
-      SSL_V23 /* There is no SSL protocol version named SSLv23. The SSLv23_method() API
+      SSL_V23, /* There is no SSL protocol version named SSLv23. The SSLv23_method() API
               and its variants choose SSLv2, SSLv3, or TLSv1 for compatibility with the peer. */
+      TLS // Standard Protocol as of 11/2018, OpenSSL will choose highest possible TLS standard between peers
    };
 
    struct SSLSocket
@@ -87,7 +88,7 @@ public:
    /* Please provide your logger thread-safe routine, otherwise, you can turn off
    * error log messages printing by not using the flag ALL_FLAGS or ENABLE_LOG */
    explicit ASecureSocket(const LogFnCallback& oLogger,
-                          const OpenSSLProtocol eSSLVersion = OpenSSLProtocol::SSL_V23,
+                          const OpenSSLProtocol eSSLVersion = OpenSSLProtocol::TLS,
                           const SettingsFlag eSettings = ALL_FLAGS);
    virtual ~ASecureSocket() = 0;
 
