@@ -133,39 +133,32 @@ Do not share ASocket or ASecureSocket objects across threads.
 
 ## Installation
 
-You will need CMake to generate a makefile for the static library or to build the tests/code coverage 
-program.
+You will need CMake to generate a makefile for the static library or to build the tests/code coverage program.
 
-Also make sure you have Google Test installed.
+Also make sure you have Google Test installed and OpenSSL updated to the lastest version.
 
 This tutorial will help you installing properly Google Test on Ubuntu: https://www.eriksmistad.no/getting-started-with-google-test-on-ubuntu/
 
-The CMake script located in the tree will produce a makefile for the creation of a static library,
-whereas the one under SocketTest will produce the unit tests program.
+If you work under Centos7 this tutorial may help you to install the latest version of OpenSSL : https://blacksaildivision.com/how-to-install-openssl-on-centos
 
-To create a debug static library, change directory to the one containing the first CMakeLists.txt
+The CMake script located in the tree will produce Makefiles for the creation of the static library and for the unit tests program.
+
+To create a debug static library and a test binary, change directory to the one containing the first CMakeLists.txt and :
 
 ```Shell
-cmake . -DCMAKE_BUILD_TYPE:STRING=Debug
+mkdir build
+cd build
+cmake .. -DCMAKE_BUILD_TYPE:STRING=Debug
 make
 ```
 
 To create a release static library, just change "Debug" by "Release".
 
-The library will be found under lib/[BUILD_TYPE]/libsocket.a
+The library will be found under "build/[Debug|Release]/lib/libsocket.a" whereas the test program will be located in "build/[Debug|Release]/bin/test_socket"
 
-For the unit tests program, first build the static library and use the same build type when
-building it :
-
+To directly run the unit test binary, you must indicate the path of the INI conf file (see the section below)
 ```Shell
-cd SocketTest
-cmake . -DCMAKE_BUILD_TYPE=Debug     # or Release
-make
-```
-
-To run it, you must indicate the path of the INI conf file (see the section below)
-```Shell
-./bin/[BUILD_TYPE]/test_socket /path_to_your_ini_file/conf.ini
+./[Debug|Release]/bin/test_socket /path_to_your_ini_file/conf.ini
 ```
 
 ## Run Unit Tests
@@ -188,11 +181,23 @@ ssl_cert_file=site.cert
 ssl_key_file=privkey.pem
 ```
 
-You can also generate an XML file of test results by adding this argument when calling the test program
+You can also generate an XML file of test results by adding --getst_output argument when calling the test program
 
 ```Shell
-./bin/[BUILD_TYPE]/test_socket /path_to_your_ini_file/conf.ini --gtest_output="xml:./TestSocket.xml"
+./[Debug|Release]/bin/test_socket /path_to_your_ini_file/conf.ini --gtest_output="xml:./TestSocket.xml"
 ```
+
+An alternative way to compile and run unit tests :
+
+```Shell
+mkdir build
+cd build
+cmake .. -DCMAKE_BUILD_TYPE=Debug -DTEST_INI_FILE="full_or_relative_path_to_your_test_conf.ini"
+make
+make test
+```
+
+You may use a tool like https://github.com/adarmalik/gtest2html to convert your XML test result in an HTML file.
 
 ## Memory Leak Check
 
@@ -210,20 +215,18 @@ valgrind --leak-check=full ./bin/Debug/test_socket /path_to_ini_file/conf.ini
 The code coverage build doesn't use the static library but compiles and uses directly the 
 socket API in the test program.
 
-First of all, in SocketTest/CMakeLists.txt, find and repalce :
-```
-"/home/amzoughi/Test/socket_github.ini"
-```
-by the location of your ini file and launch the code coverage :
-
 ```Shell
-cd SocketTest
-cmake . -DCMAKE_BUILD_TYPE=Coverage
+mkdir build
+cd build
+cmake .. -DCMAKE_BUILD_TYPE=Coverage -DCOVERAGE_INI_FILE:STRING="full_path_to_your_test_conf.ini"
 make
 make coverage_socket
 ```
 
 If everything is OK, the results will be found under ./SocketTest/coverage/index.html
+
+Make sure you feed CMake with a full path to your test conf INI file, otherwise, the coverage test
+will be useless.
 
 Under Visual Studio, you can simply use OpenCppCoverage (https://opencppcoverage.codeplex.com/)
 
@@ -232,7 +235,6 @@ Under Visual Studio, you can simply use OpenCppCoverage (https://opencppcoverage
 The C++ code of the Socket C++ API classes is Cppcheck compliant.
 
 ## Contribute
-All contributions are highly appreciated. This includes updating documentation, writing code and unit tests
-to increase code coverage and enhance tools.
+All contributions are highly appreciated. This includes updating documentation, cleaning and writing code and unit tests to increase code coverage and enhance tools.
 
 Try to preserve the existing coding style (Hungarian notation, indentation etc...).
