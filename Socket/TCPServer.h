@@ -35,7 +35,7 @@ public:
                        /*const std::string& strAddr,*/
                        const std::string& strPort,
                        const SettingsFlag eSettings = ALL_FLAGS)
-                       throw (EResolveError);
+                       /*throw (EResolveError)*/;
    
    ~CTCPServer() override;
 

@@ -11,7 +11,7 @@ CTCPSSLServer::CTCPSSLServer(const LogFnCallback oLogger,
                              const std::string& strPort,
                              const OpenSSLProtocol eSSLVersion,
                              const SettingsFlag eSettings /*= ALL_FLAGS*/)
-                             throw (EResolveError) :
+                             /*throw (EResolveError)*/ :
    ASecureSocket(oLogger, eSSLVersion, eSettings),
    m_TCPServer(oLogger, strPort)
 {
