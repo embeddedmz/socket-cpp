@@ -24,7 +24,7 @@ public:
    enum class OpenSSLProtocol
    {
       #ifndef LINUX
-      SSL_V2,
+      //SSL_V2, // deprecated
       #endif
       //SSL_V3, // deprecated
       TLS_V1,
