@@ -150,65 +150,62 @@ TEST_F(TCPTest, TestClient)
 }
 */
 
-TEST_F(TCPTest, TestLoopback)
+TEST_F(TCPTest, TestLoopbackTenMegaBytes)
 {
    if (TCP_TEST_ENABLED)
    {
-      const std::string strSendData = "Hello World !";
-      char szRcvBuffer[14] = {};
+      srand(static_cast<unsigned>(time(nullptr)));
+
+      const size_t tenMeg = 10*1024*1024;
+      std::vector<char> TenMbData(tenMeg);
+      std::vector<char> RcvBuffer(tenMeg);
+      std::generate (TenMbData.begin(), TenMbData.end(), []{ return (std::rand() % 256); });
+
       ASocket::Socket ConnectedClient;
 
       ASSERT_NO_THROW(m_pTCPServer.reset(new CTCPServer(PRINT_LOG, TCP_SERVER_PORT)));
 
-      #ifdef WINDOWS
       // Not always starts a new thread, std::launch::async must be passed to force it.
       std::future<bool> futListen = std::async(std::launch::async,
                                                [&] { return m_pTCPServer->Listen(ConnectedClient); });
-      #else
-      auto ListenTask = [&] { return m_pTCPServer->Listen(ConnectedClient); };
-      std::packaged_task< bool(void) > packageListen { ListenTask };
-      std::future<bool> futListen = packageListen.get_future();
-      std::thread ListenThread { std::move(packageListen) }; // pack. task is not copyable
-      #endif
-
-      // client side
-      // send period between 50 and 999 ms
-      srand(static_cast<unsigned>(time(nullptr)));
-      unsigned iPeriod = 50 + (rand() % (999 - 50));
  
       // give time to let the server object reach the accept instruction.
       SleepMs(500);
 
       ASSERT_TRUE(m_pTCPClient->Connect("localhost", "6669"));
-      #ifdef WINDOWS
       ASSERT_TRUE(futListen.get());
-      #else
-      /* with std::thread we can't easily get the result of Listen
-       * unlike std::async/promise/packaged_task
-       */
-      ASSERT_TRUE(futListen.get());
-      ListenThread.join();
-      #endif
+
+      auto ClientReceive = [&]() {
+         return m_pTCPClient->Receive(RcvBuffer.data(), tenMeg);
+      };
+
+      // launch the receive in another thread to prevent server from
+      // hanging when sending "many" bytes.
+      std::future<int> futClientReceive = std::async(std::launch::async, ClientReceive);
+
       ASSERT_FALSE(ConnectedClient == INVALID_SOCKET);
 
-      // perform 3 checks
-      unsigned uCount = 0;
-      while (uCount++ < 3)
-      {
-         // server -> client
-         EXPECT_TRUE(m_pTCPServer->Send(ConnectedClient, strSendData));
-         EXPECT_GT(m_pTCPClient->Receive(szRcvBuffer, 13), 0);
-         EXPECT_EQ(strSendData, szRcvBuffer);
-         memset(szRcvBuffer, '\0', 14);
+      // server -> client
+      EXPECT_TRUE(m_pTCPServer->Send(ConnectedClient, TenMbData));
 
-         // client -> server
-         EXPECT_TRUE(m_pTCPClient->Send(strSendData));
-         EXPECT_GT(m_pTCPServer->Receive(ConnectedClient, szRcvBuffer, 13), 0);
-         EXPECT_EQ(strSendData, szRcvBuffer);
-         memset(szRcvBuffer, '\0', 14);
+      int nRcvdBytes = futClientReceive.get();
 
-         SleepMs(iPeriod);
-      }
+      EXPECT_EQ(nRcvdBytes, tenMeg);
+      EXPECT_TRUE(std::equal(TenMbData.begin(), TenMbData.end(), RcvBuffer.begin()));
+
+      std::fill(RcvBuffer.begin(), RcvBuffer.end(), 0);
+
+      // client -> server
+      auto ServerReceive = [&]() {
+         return m_pTCPServer->Receive(ConnectedClient, RcvBuffer.data(), tenMeg);
+      };
+      std::future<int> futServerReceive = std::async(std::launch::async, ServerReceive);
+
+      EXPECT_TRUE(m_pTCPClient->Send(TenMbData));
+      nRcvdBytes = futServerReceive.get();
+
+      EXPECT_EQ(nRcvdBytes, tenMeg);
+      EXPECT_TRUE(std::equal(TenMbData.begin(), TenMbData.end(), RcvBuffer.begin()));
 
       // disconnect
       EXPECT_TRUE(m_pTCPClient->Disconnect());
@@ -328,16 +325,16 @@ TEST_F(SSLTCPTest, TestServer)
 }
 */
 
-TEST_F(SSLTCPTest, TestLoopback)
+TEST_F(SSLTCPTest, TestLoopbackTenMegabytes)
 {
    if (SECURE_TCP_TEST_ENABLED)
    {
       srand(static_cast<unsigned>(time(nullptr)));
 
-      const size_t oneMeg = 1024*1024;
-      std::vector<char> OneMbData(oneMeg);
-      std::vector<char> RcvBuffer(oneMeg);
-      std::generate (OneMbData.begin(), OneMbData.end(), []{ return (std::rand() % 256); });
+      const size_t tenMeg = 10*1024*1024;
+      std::vector<char> TenMbData(tenMeg);
+      std::vector<char> RcvBuffer(tenMeg);
+      std::generate (TenMbData.begin(), TenMbData.end(), []{ return (std::rand() % 256); });
 
       ASecureSocket::SSLSocket ConnectedClient;
 
@@ -349,7 +346,7 @@ TEST_F(SSLTCPTest, TestLoopback)
 
 #ifdef WINDOWS
       // Not always starts a new thread, std::launch::async must be passed to force it.
-      std::future<bool> futListen = std::async(std::launch::async,
+      std::future<bool> futConnect = std::async(std::launch::async,
       [&]() -> bool
       {
          // give time to let the server object reach the accept instruction.
@@ -382,7 +379,7 @@ TEST_F(SSLTCPTest, TestLoopback)
       m_pSSLTCPServer->Listen(ConnectedClient);
 
 #ifdef WINDOWS
-      ASSERT_TRUE(futListen.get());
+      ASSERT_TRUE(futConnect.get());
 #else
       /* with std::thread we can't easily get the result of Listen
        * contrary to std::async/promise/packaged_task
@@ -390,22 +387,39 @@ TEST_F(SSLTCPTest, TestLoopback)
       ASSERT_TRUE(futConnect.get());
       ConnectThread.join();
 #endif
+      auto ClientReceive = [&]() {
+         return m_pSSLTCPClient->Receive(RcvBuffer.data(), tenMeg);
+      };
+
+      // launch the receive in another thread to prevent server from
+      // hanging when sending "many" bytes.
+      std::future<int> futClientReceive = std::async(std::launch::async, ClientReceive);
 
       ASSERT_FALSE(ConnectedClient.m_pSSL == nullptr);
       ASSERT_FALSE(ConnectedClient.m_pCTXSSL == nullptr);
       ASSERT_FALSE(ConnectedClient.m_SockFd == INVALID_SOCKET);
       
       // server -> client
-      EXPECT_TRUE(m_pSSLTCPServer->Send(ConnectedClient, OneMbData));
-      EXPECT_GT(m_pSSLTCPClient->Receive(RcvBuffer.data(), oneMeg), 0);
-      EXPECT_TRUE(std::equal(OneMbData.begin(), OneMbData.end(), RcvBuffer.begin()));
+      EXPECT_TRUE(m_pSSLTCPServer->Send(ConnectedClient, TenMbData));
+
+      int nRcvdBytes = futClientReceive.get();
+
+      EXPECT_EQ(nRcvdBytes, tenMeg);
+      EXPECT_TRUE(std::equal(TenMbData.begin(), TenMbData.end(), RcvBuffer.begin()));
 
       std::fill(RcvBuffer.begin(), RcvBuffer.end(), 0);
 
       // client -> server
-      EXPECT_TRUE(m_pSSLTCPClient->Send(OneMbData));
-      EXPECT_GT(m_pSSLTCPServer->Receive(ConnectedClient, RcvBuffer.data(), oneMeg), 0);
-      EXPECT_TRUE(std::equal(OneMbData.begin(), OneMbData.end(), RcvBuffer.begin()));
+      auto ServerReceive = [&]() {
+         return m_pSSLTCPServer->Receive(ConnectedClient, RcvBuffer.data(), tenMeg);
+      };
+      std::future<int> futServerReceive = std::async(std::launch::async, ServerReceive);
+
+      EXPECT_TRUE(m_pSSLTCPClient->Send(TenMbData));
+      nRcvdBytes = futServerReceive.get();
+
+      EXPECT_EQ(nRcvdBytes, tenMeg);
+      EXPECT_TRUE(std::equal(TenMbData.begin(), TenMbData.end(), RcvBuffer.begin()));
 
       // disconnect
       EXPECT_TRUE(m_pSSLTCPClient->Disconnect());
