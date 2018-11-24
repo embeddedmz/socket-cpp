@@ -19,9 +19,9 @@ CTCPSSLServer::CTCPSSLServer(const LogFnCallback oLogger,
 }
 
 // returns the socket of the accepted client
-bool CTCPSSLServer::Listen(SSLSocket& ClientSocket, size_t msec /*= ACCEPT_WAIT_INF_DELAY*/)
+bool CTCPSSLServer::Listen(SSLSocket& ClientSocket, size_t msec /*= ACCEPT_WAIT_INF_DELAY*/, int maxRcvTime, int maxSndTime)
 {
-   if (m_TCPServer.Listen(ClientSocket.m_SockFd, msec))
+   if (m_TCPServer.Listen(ClientSocket.m_SockFd, msec, maxRcvTime, maxSndTime))
    {
       SetUpCtxServer(ClientSocket);
 
@@ -218,7 +218,7 @@ bool CTCPSSLServer::Disconnect(SSLSocket& ClientSocket) const
    // send close_notify message to notify peer of the SSL closure.
    ShutdownSSL(ClientSocket);
 
-   return m_TCPServer.Disconnect(ClientSocket.m_SockFd);;
+   return m_TCPServer.Disconnect(ClientSocket.m_SockFd);
 }
 
 CTCPSSLServer::~CTCPSSLServer()

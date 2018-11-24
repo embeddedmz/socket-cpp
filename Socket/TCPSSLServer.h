@@ -30,7 +30,7 @@ public:
    CTCPSSLServer(const CTCPSSLServer&) = delete;
    CTCPSSLServer& operator=(const CTCPSSLServer&) = delete;
 
-   bool Listen(SSLSocket& ClientSocket, size_t msec = ACCEPT_WAIT_INF_DELAY);
+   bool Listen(SSLSocket& ClientSocket, size_t msec = ACCEPT_WAIT_INF_DELAY, int maxRcvTime = -1, int maxSndTime = -1);
 
    bool HasPending(const SSLSocket& ClientSocket);
    int PendingBytes(const SSLSocket& ClientSocket);

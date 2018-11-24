@@ -63,7 +63,7 @@ CTCPServer::CTCPServer(const LogFnCallback oLogger,
 }
 
 // returns the socket of the accepted client
-bool CTCPServer::Listen(ASocket::Socket& ClientSocket, size_t msec /*= ACCEPT_WAIT_INF_DELAY*/)
+bool CTCPServer::Listen(ASocket::Socket& ClientSocket, size_t msec /*= ACCEPT_WAIT_INF_DELAY*/, int maxRcvTime, int maxSndTime)
 {
    ClientSocket = INVALID_SOCKET;
 
@@ -140,12 +140,58 @@ bool CTCPServer::Listen(ASocket::Socket& ClientSocket, size_t msec /*= ACCEPT_WA
       if (iErr < 0)
       {
          if (m_eSettingsFlags & ENABLE_LOG)
-            m_oLog("[TCPServer][Error] CTCPServer::Listen : Socket error in call to setsockopt.");
+            m_oLog("[TCPServer][Error] CTCPServer::Listen : Socket error in SO_REUSEADDR call to setsockopt.");
 
          close(m_ListenSocket);
          m_ListenSocket = INVALID_SOCKET;
 
          return false;
+      }
+
+      iErr = setsockopt(m_ListenSocket, SOL_SOCKET, SO_KEEPALIVE, reinterpret_cast<char*>(&opt), sizeof(int));
+      if (iErr < 0)
+      {
+         if (m_eSettingsFlags & ENABLE_LOG)
+            m_oLog("[TCPServer][Error] CTCPServer::Listen : Socket error in call 2 to setsockopt.");
+
+         close(m_ListenSocket);
+         m_ListenSocket = INVALID_SOCKET;
+
+         return false;
+      }
+
+      if(maxRcvTime >= 0){
+         struct timeval t;
+         t.tv_sec = 0;
+         t.tv_usec = maxRcvTime;
+         iErr = setsockopt(m_ListenSocket, SOL_SOCKET, SO_RCVTIMEO,(char *)&t,sizeof(struct timeval));
+         if (iErr < 0)
+         {
+            if (m_eSettingsFlags & ENABLE_LOG)
+               m_oLog("[TCPServer][Error] CTCPServer::Listen : Socket error in SO_RCVTIMEO call to setsockopt.");
+
+            close(m_ListenSocket);
+            m_ListenSocket = INVALID_SOCKET;
+
+            return false;
+         }
+      }
+
+      if(maxSndTime >= 0){
+         struct timeval t;
+         t.tv_sec = 0;
+         t.tv_usec = maxRcvTime;
+         iErr = setsockopt(m_ListenSocket, SOL_SOCKET, SO_SNDTIMEO,(char *)&t,sizeof(struct timeval));
+         if (iErr < 0)
+         {
+            if (m_eSettingsFlags & ENABLE_LOG)
+               m_oLog("[TCPServer][Error] CTCPServer::Listen : Socket error in SO_SNDTIMEO call to setsockopt.");
+
+            close(m_ListenSocket);
+            m_ListenSocket = INVALID_SOCKET;
+
+            return false;
+         }
       }
 
       // bind(int fd, struct sockaddr *local_addr, socklen_t addr_length)

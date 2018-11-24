@@ -19,6 +19,7 @@
 #include <stdlib.h>
 #include <string>
 #include <vector>
+#include <fcntl.h>   //fcntl
 
 #include "Socket.h"
 
@@ -43,7 +44,7 @@ public:
    CTCPServer& operator=(const CTCPServer&) = delete;
 
    /* returns the socket of the accepted client, the waiting period can be set */
-   bool Listen(Socket& ClientSocket, size_t msec = ACCEPT_WAIT_INF_DELAY);
+   bool Listen(Socket& ClientSocket, size_t msec = ACCEPT_WAIT_INF_DELAY, int maxRcvTime = -1, int maxSndTime = -1);
    
    int Receive(const Socket ClientSocket,
                char* pData,
