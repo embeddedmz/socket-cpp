@@ -63,6 +63,8 @@ CTCPServer::CTCPServer(const LogFnCallback oLogger,
 }
 
 // returns the socket of the accepted client
+// maxRcvTime and maxSendTime define timeouts in µs for receiving and sending over the socket. Using a negative value
+// will deactivate the timeout. 0 will set a zero timeout.
 bool CTCPServer::Listen(ASocket::Socket& ClientSocket, size_t msec /*= ACCEPT_WAIT_INF_DELAY*/, int maxRcvTime, int maxSndTime)
 {
    ClientSocket = INVALID_SOCKET;
@@ -148,17 +150,19 @@ bool CTCPServer::Listen(ASocket::Socket& ClientSocket, size_t msec /*= ACCEPT_WA
          return false;
       }
 
+      /*
       iErr = setsockopt(m_ListenSocket, SOL_SOCKET, SO_KEEPALIVE, reinterpret_cast<char*>(&opt), sizeof(int));
       if (iErr < 0)
       {
          if (m_eSettingsFlags & ENABLE_LOG)
-            m_oLog("[TCPServer][Error] CTCPServer::Listen : Socket error in call 2 to setsockopt.");
+            m_oLog("[TCPServer][Error] CTCPServer::Listen : Socket error in SO_KEEPALIVE call to setsockopt.");
 
          close(m_ListenSocket);
          m_ListenSocket = INVALID_SOCKET;
 
          return false;
       }
+      */
 
       if(maxRcvTime >= 0){
          struct timeval t;
