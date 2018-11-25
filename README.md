@@ -207,7 +207,7 @@ You can download it here: https://vld.codeplex.com/
 To perform a leak check with the Linux build, you can do so :
 
 ```Shell
-valgrind --leak-check=full ./bin/Debug/test_socket /path_to_ini_file/conf.ini
+valgrind --leak-check=full ./Debug/bin/test_socket /path_to_ini_file/conf.ini
 ```
 
 ## Code Coverage
