@@ -55,6 +55,11 @@ public:
    bool Send(const std::vector<char>& Data) const;
    int  Receive(char* pData, const size_t uSize, bool bReadFully = true) const;
 
+   bool SetRcvTimeout(unsigned int msec_timeout);
+   bool SetRcvTimeout(struct timeval Timeout);
+   bool SetSndTimeout(unsigned int msec_timeout);
+   bool SetSndTimeout(struct timeval Timeout);
+
    bool IsConnected() const { return m_eStatus == CONNECTED; }
 	
 protected:
