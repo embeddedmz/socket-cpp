@@ -19,7 +19,6 @@
 #include <stdlib.h>
 #include <string>
 #include <vector>
-#include <fcntl.h>   //fcntl
 
 #include "Socket.h"
 
@@ -29,7 +28,7 @@
 #endif
 
 class CTCPServer : public ASocket
-{	
+{
 public:
    explicit CTCPServer(const LogFnCallback oLogger,
                        /*const std::string& strAddr,*/
@@ -45,7 +44,7 @@ public:
 
    /* returns the socket of the accepted client, the waiting period can be set */
    bool Listen(Socket& ClientSocket, size_t msec = ACCEPT_WAIT_INF_DELAY);
-   
+
    int Receive(const Socket ClientSocket,
                char* pData,
                const size_t uSize,
@@ -54,7 +53,7 @@ public:
    bool Send(const Socket ClientSocket, const char* pData, const size_t uSize) const;
    bool Send(const Socket ClientSocket, const std::string& strData) const;
    bool Send(const Socket ClientSocket, const std::vector<char>& Data) const;
-   
+
    bool Disconnect(const Socket ClientSocket) const;
 
    bool SetRcvTimeout(ASocket::Socket& ClientSocket, unsigned int msec_timeout);
