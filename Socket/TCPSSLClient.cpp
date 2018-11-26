@@ -11,7 +11,7 @@ CTCPSSLClient::CTCPSSLClient(const LogFnCallback oLogger,
                              const OpenSSLProtocol eSSLVersion,
                              const SettingsFlag eSettings /*= ALL_FLAGS*/) :
    ASecureSocket(oLogger, eSSLVersion, eSettings),
-   m_TCPClient(oLogger)
+   m_TCPClient(oLogger, eSettings)
 {
 
 }

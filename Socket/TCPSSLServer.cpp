@@ -13,7 +13,7 @@ CTCPSSLServer::CTCPSSLServer(const LogFnCallback oLogger,
                              const SettingsFlag eSettings /*= ALL_FLAGS*/)
                              /*throw (EResolveError)*/ :
    ASecureSocket(oLogger, eSSLVersion, eSettings),
-   m_TCPServer(oLogger, strPort)
+   m_TCPServer(oLogger, strPort, eSettings)
 {
 
 }
@@ -157,7 +157,7 @@ int CTCPSSLServer::PendingBytes(const SSLSocket& ClientSocket)
 
 /* When an SSL_read() operation has to be repeated because of SSL_ERROR_WANT_READ or SSL_ERROR_WANT_WRITE,
  * it must be repeated with the same arguments.*/
-int CTCPSSLServer::Receive(const SSLSocket& ClientSocket, 
+int CTCPSSLServer::Receive(const SSLSocket& ClientSocket,
                            char* pData,
                            const size_t uSize,
                            bool bReadFully /*= true*/) const
