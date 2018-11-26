@@ -10,7 +10,8 @@
 
 #ifndef LINUX
 // to avoid link problems in prod/test program
-#include <openssl/applink.c>
+// Update : with the newer versions of OpenSSL, there's no need to include it
+//#include <openssl/applink.c>
 #endif
 
 // Static members initialization
@@ -70,9 +71,10 @@ void ASecureSocket::SetUpCtxClient(SSLSocket& Socket)
          break;
 
       #ifndef LINUX
-      case OpenSSLProtocol::SSL_V2:
-         Socket.m_pMTHDSSL = const_cast<SSL_METHOD*>(SSLv2_client_method());
-         break;
+      // deprecated in newer versions of OpenSSL
+      //case OpenSSLProtocol::SSL_V2:
+         //Socket.m_pMTHDSSL = const_cast<SSL_METHOD*>(SSLv2_client_method());
+         //break;
       #endif
 
       // deprecated
@@ -98,9 +100,9 @@ void ASecureSocket::SetUpCtxServer(SSLSocket& Socket)
          break;
 
       #ifndef LINUX
-      case OpenSSLProtocol::SSL_V2:
-         Socket.m_pMTHDSSL = const_cast<SSL_METHOD*>(SSLv2_server_method());
-         break;
+      //case OpenSSLProtocol::SSL_V2:
+         //Socket.m_pMTHDSSL = const_cast<SSL_METHOD*>(SSLv2_server_method());
+         //break;
       #endif
 
       // deprecated
