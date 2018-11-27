@@ -11,9 +11,25 @@ CTCPSSLClient::CTCPSSLClient(const LogFnCallback oLogger,
                              const OpenSSLProtocol eSSLVersion,
                              const SettingsFlag eSettings /*= ALL_FLAGS*/) :
    ASecureSocket(oLogger, eSSLVersion, eSettings),
-   m_TCPClient(oLogger)
+   m_TCPClient(oLogger, eSettings)
 {
 
+}
+
+bool CTCPSSLClient::SetRcvTimeout(unsigned int msec_timeout){
+   return m_TCPClient.SetRcvTimeout(msec_timeout);
+}
+
+bool CTCPSSLClient::SetRcvTimeout(struct timeval timeout){
+   return m_TCPClient.SetRcvTimeout(timeout);
+}
+
+bool CTCPSSLClient::SetSndTimeout(unsigned int msec_timeout){
+   return m_TCPClient.SetSndTimeout(msec_timeout);
+}
+
+bool CTCPSSLClient::SetSndTimeout(struct timeval timeout){
+   return m_TCPClient.SetSndTimeout(timeout);
 }
 
 // Connexion au serveur
@@ -176,14 +192,18 @@ bool CTCPSSLClient::Send(const std::vector<char>& Data) const
 
 bool CTCPSSLClient::HasPending()
 {
-   int pend = SSL_has_pending(m_SSLConnectSocket.m_pSSL);
+   int pend;
+
+   pend = SSL_has_pending(m_SSLConnectSocket.m_pSSL);
 
    return pend == 1;
 }
 
 int CTCPSSLClient::PendingBytes()
 {
-   int nPend = SSL_pending(m_SSLConnectSocket.m_pSSL);
+   int nPend;
+
+   nPend = SSL_pending(m_SSLConnectSocket.m_pSSL);
 
    return nPend;
 }

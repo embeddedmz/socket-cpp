@@ -27,6 +27,11 @@ public:
    /* connect to a TCP SSL server */
    bool Connect(const std::string& strServer, const std::string& strPort);
 
+   bool SetRcvTimeout(unsigned int timeout);
+   bool SetRcvTimeout(struct timeval timeout);
+   bool SetSndTimeout(unsigned int timeout);
+   bool SetSndTimeout(struct timeval timeout);
+
    /* disconnect from the SSL TCP server */
    bool Disconnect();
 

@@ -188,3 +188,19 @@ int ASocket::SelectSockets(const ASocket::Socket* pSocketsToSelect, const size_t
 
    return -1;
 }
+
+/**
+* @brief converts a value representing milliseconds into a struct timeval
+*
+* @param [time_msec] a time value in milliseconds
+*
+* @retval time_msec converted to struct timeval
+*/
+struct timeval ASocket::TimevalFromMsec(unsigned int time_msec){
+   struct timeval t;
+
+   t.tv_sec = time_msec / 1000;
+   t.tv_usec = (time_msec % 1000) * 1000;
+
+   return t;
+}
