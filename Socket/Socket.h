@@ -76,6 +76,8 @@ public:
 
    int SelectSocket(const Socket sd, const size_t msec);
 
+   static struct timeval TimevalFromMsec(unsigned int time_msec);
+
 protected:
    // String Helpers
    static std::string StringFormat(const std::string strFormat, ...);

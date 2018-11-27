@@ -63,9 +63,7 @@ CTCPServer::CTCPServer(const LogFnCallback oLogger,
 
 // Method for setting receive timeout. Can be called after Listen, using the previously created ClientSocket
 bool CTCPServer::SetRcvTimeout(ASocket::Socket& ClientSocket, unsigned int msec_timeout) {
-	struct timeval t;
-	t.tv_sec = 0;
-	t.tv_usec = (msec_timeout % 1000) * 1000;
+	struct timeval t = ASocket::TimevalFromMsec(msec_timeout);
 
 	return this->SetRcvTimeout(ClientSocket, t);
 }
@@ -89,9 +87,7 @@ bool CTCPServer::SetRcvTimeout(ASocket::Socket& ClientSocket, struct timeval Tim
 
 // Method for setting send timeout. Can be called after Listen, using the previously created ClientSocket
 bool CTCPServer::SetSndTimeout(ASocket::Socket& ClientSocket, unsigned int msec_timeout) {
-	struct timeval t;
-	t.tv_sec = 0;
-	t.tv_usec = (msec_timeout % 1000) * 1000;
+	struct timeval t = ASocket::TimevalFromMsec(msec_timeout);
 
 	return this->SetRcvTimeout(ClientSocket, t);
 }
