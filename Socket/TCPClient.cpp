@@ -33,8 +33,7 @@ bool CTCPClient::SetRcvTimeout(struct timeval timeout) {
 		if (m_eSettingsFlags & ENABLE_LOG)
 			m_oLog("[TCPServer][Error] CTCPClient::SetRcvTimeout : Socket error in SO_RCVTIMEO call to setsockopt.");
 
-		close(m_ConnectSocket);
-		m_ConnectSocket = INVALID_SOCKET;
+		Disconnect();
 
 		return false;
 	}
@@ -57,8 +56,7 @@ bool CTCPClient::SetSndTimeout(struct timeval timeout) {
 		if (m_eSettingsFlags & ENABLE_LOG)
 			m_oLog("[TCPServer][Error] CTCPClient::SetSndTimeout : Socket error in SO_SNDTIMEO call to setsockopt.");
 
-		close(m_ConnectSocket);
-		m_ConnectSocket = INVALID_SOCKET;
+		Disconnect();
 
 		return false;
 	}
