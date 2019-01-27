@@ -8,14 +8,22 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE}/bin)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE}/lib)
 
-add_definitions(-DLINUX)
-add_definitions(-DOPENSSL)
+if(NOT MSVC)
+	add_definitions(-DLINUX)
+else()
+	add_definitions(-DWINDOWS)
+endif()
+
+if(NOT SOCKET_CPP_BUILD_WITHOUT_SECURE_CLASSES)
+    add_definitions(-DOPENSSL)
+endif()
 
 include_directories(Socket)
 
 add_subdirectory(Socket)
 add_subdirectory(SocketTest)
 
+include(CTest)
 enable_testing ()
 
 # test if the test INI file exist, otherwise default it to the one in SocketTest folder

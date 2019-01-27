@@ -100,6 +100,11 @@ m_pTCPServer->Disconnect(ConnectedClient);
 ```
 
 Before using SSL/TLS secured classes, compile both library and the test program with the preprocessor macro OPENSSL.
+If you don't want to compile secure classes, you can indicate that to CMake when generating a makefile or Visual Studio solutions, by setting SOCKET_CPP_BUILD_WITHOUT_SECURE_CLASSES=TRUE (under Windows, in CMake-GUI, add the entry, select "BOOL" and check "Value") :
+
+```shell
+cmake -DCMAKE_BUILD_TYPE=Release -DSOCKET_CPP_BUILD_WITHOUT_SECURE_CLASSES etc...
+```
 
 Almost all the operations look similar to the operations above for unencrypted communications, the differences are :
 
@@ -161,6 +166,48 @@ To directly run the unit test binary, you must indicate the path of the INI conf
 ./[Debug|Release]/bin/test_socket /path_to_your_ini_file/conf.ini
 ```
 
+### Building under Windows via Visual Studio
+
+First of all, you can download and install OpenSSL : https://slproweb.com/products/Win32OpenSSL.html (32 and 64 bits).
+
+Concerning Google Test, the library will be downloaded and built automatically from its github repository.
+
+Download and install the latest version of CMake : https://cmake.org/download/ (e.g. Windows win64-x64 Installer).
+
+Under C:\OpenSSL-Win64\bin\, you will find the DLLs : libcrypto-1_1-x64.dll and libssl-1_1-x64.dll that you will need, later, to place in the same directory as the binary file that used the socket-cpp library.
+
+Open CMake (cmake-gui).
+
+In "Where is the source code", put the socket-cpp path (e.g. C:/Users/Amine/Documents/Work/PROJECTS/GitHub/socket-cpp), where the main CMakeLists.txt file exist.
+
+In "Where to build binaries", paste the directory where you want to build the project (e.g. C:/Users/Amine/Documents/Work/PROJECTS/GitHub/socket-cpp/build).
+
+Click on "Configure".
+
+If you want to indicate a configuration file to run unit tests with "CTest", before clicking on "Configure", click on "Add entry" and add this entry : TEST_INI_FILE : C:/Users/Amine/Documents/Work/PROJECTS/GitHub/socket-cpp/my_test_conf.ini (tour configuration file).
+
+Then click on "Generate", you can choose a Visual Studio version if it is not done before (e.g. Visual Studio 15 2017 Win64)
+
+Finally, click on "Open Project" to open the solution in Visual Studio.
+
+In Visual Studio, you can change the build type (Debug -> Release). Build the solution (press F7). It must succeed without any errors. You can close Visual Studio.
+
+The library will be found under C:\Users\Amine\Documents\Work\PROJECTS\GitHub\socket-cpp\build\lib\Release\socket.lib
+
+After building a program using "socket.lib", do not forget to copy OpenSSL DLLs in the directory where the program binary is located.
+
+For example, in the build directory (e.g. C:\Users\Amine\Documents\Work\PROJECTS\GitHub\socket_build), under "bin", directory, you may find "Debug", "Release" or both according to the build type used during the build in Visual Studio, and in it, the test program "test_socket.exe".
+
+Before executing it, make sure to copy the OpenSSL DLLs in the same directory (e.g. copy C:\OpenSSL-Win64\bin\libcrypto-1_1-x64.dll and C:\OpenSSL-Win64\bin\libssl-1_1-x64.dll, do not change the name of the DLL !)
+
+If you have provided a valid configuration file to CMake-gui (TEST_INI_FILE), you can run unit tests in the command prompt (cmd.exe - after building the project in VS) by changing directory to the one where CMake generated the build files and by running :
+
+```Shell
+ctest -c "Release"
+```
+
+to test the "Debug" library, just change "Release" by "Debug" (but ensure that you have build it before). Do not forget to place the DLLs near "test_socket.exe" before launching "ctest", otherwise, tests will fail.
+
 ## Run Unit Tests
 
 [simpleini](https://github.com/brofield/simpleini) is used to gather unit tests parameters from
@@ -207,7 +254,7 @@ You can download it here: https://vld.codeplex.com/
 To perform a leak check with the Linux build, you can do so :
 
 ```Shell
-valgrind --leak-check=full ./bin/Debug/test_socket /path_to_ini_file/conf.ini
+valgrind --leak-check=full ./Debug/bin/test_socket /path_to_ini_file/conf.ini
 ```
 
 ## Code Coverage
