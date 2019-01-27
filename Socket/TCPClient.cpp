@@ -18,6 +18,54 @@ CTCPClient::CTCPClient(const LogFnCallback oLogger,
 
 }
 
+// Method for setting receive timeout. Can be called after Connect
+bool CTCPClient::SetRcvTimeout(unsigned int msec_timeout) {
+	struct timeval t = ASocket::TimevalFromMsec(msec_timeout);
+
+	return this->SetRcvTimeout(t);
+}
+
+bool CTCPClient::SetRcvTimeout(struct timeval timeout) {
+	int iErr;
+
+	iErr = setsockopt(m_ConnectSocket, SOL_SOCKET, SO_RCVTIMEO, (char*) &timeout, sizeof(struct timeval));
+	if (iErr < 0) {
+		if (m_eSettingsFlags & ENABLE_LOG)
+			m_oLog("[TCPServer][Error] CTCPClient::SetRcvTimeout : Socket error in SO_RCVTIMEO call to setsockopt.");
+
+		close(m_ConnectSocket);
+		m_ConnectSocket = INVALID_SOCKET;
+
+		return false;
+	}
+
+	return true;
+}
+
+// Method for setting send timeout. Can be called after Connect
+bool CTCPClient::SetSndTimeout(unsigned int msec_timeout) {
+	struct timeval t = ASocket::TimevalFromMsec(msec_timeout);
+
+	return this->SetSndTimeout(t);
+}
+
+bool CTCPClient::SetSndTimeout(struct timeval timeout) {
+	int iErr;
+
+	iErr = setsockopt(m_ConnectSocket, SOL_SOCKET, SO_SNDTIMEO, (char*) &timeout, sizeof(struct timeval));
+	if (iErr < 0) {
+		if (m_eSettingsFlags & ENABLE_LOG)
+			m_oLog("[TCPServer][Error] CTCPClient::SetSndTimeout : Socket error in SO_SNDTIMEO call to setsockopt.");
+
+		close(m_ConnectSocket);
+		m_ConnectSocket = INVALID_SOCKET;
+
+		return false;
+	}
+
+	return true;
+}
+
 // Connexion au serveur
 bool CTCPClient::Connect(const std::string& strServer, const std::string& strPort)
 {
@@ -171,7 +219,7 @@ bool CTCPClient::Connect(const std::string& strServer, const std::string& strPor
       m_ConnectSocket = socket(pResPtr->ai_family, pResPtr->ai_socktype, pResPtr->ai_protocol);
       if (m_ConnectSocket < 0) // or == -1
          continue;
-      
+
       // connexion to the server
       int iConRet = connect(m_ConnectSocket, pResPtr->ai_addr, pResPtr->ai_addrlen);
       if (iConRet >= 0) // or != -1

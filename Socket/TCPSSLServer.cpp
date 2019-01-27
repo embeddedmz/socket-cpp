@@ -13,9 +13,25 @@ CTCPSSLServer::CTCPSSLServer(const LogFnCallback oLogger,
                              const SettingsFlag eSettings /*= ALL_FLAGS*/)
                              /*throw (EResolveError)*/ :
    ASecureSocket(oLogger, eSSLVersion, eSettings),
-   m_TCPServer(oLogger, strPort)
+   m_TCPServer(oLogger, strPort, eSettings)
 {
 
+}
+
+bool CTCPSSLServer::SetRcvTimeout(SSLSocket& ClientSocket, unsigned int msec_timeout){
+   return m_TCPServer.SetRcvTimeout(ClientSocket.m_SockFd, msec_timeout);
+}
+
+bool CTCPSSLServer::SetRcvTimeout(SSLSocket& ClientSocket, struct timeval timeout){
+   return m_TCPServer.SetRcvTimeout(ClientSocket.m_SockFd, timeout);
+}
+
+bool CTCPSSLServer::SetSndTimeout(SSLSocket& ClientSocket, unsigned int msec_timeout){
+   return m_TCPServer.SetSndTimeout(ClientSocket.m_SockFd, msec_timeout);
+}
+
+bool CTCPSSLServer::SetSndTimeout(SSLSocket& ClientSocket, struct timeval timeout){
+   return m_TCPServer.SetSndTimeout(ClientSocket.m_SockFd, timeout);
 }
 
 // returns the socket of the accepted client
@@ -123,21 +139,25 @@ bool CTCPSSLServer::Listen(SSLSocket& ClientSocket, size_t msec /*= ACCEPT_WAIT_
 
 bool CTCPSSLServer::HasPending(const SSLSocket& ClientSocket)
 {
-   int pend = SSL_has_pending(ClientSocket.m_pSSL);
+   int pend;
+
+   pend = SSL_has_pending(ClientSocket.m_pSSL);
 
    return pend == 1;
 }
 
 int CTCPSSLServer::PendingBytes(const SSLSocket& ClientSocket)
 {
-   int nPend = SSL_pending(ClientSocket.m_pSSL);
+   int nPend;
+
+   nPend = SSL_pending(ClientSocket.m_pSSL);
 
    return nPend;
 }
 
 /* When an SSL_read() operation has to be repeated because of SSL_ERROR_WANT_READ or SSL_ERROR_WANT_WRITE,
  * it must be repeated with the same arguments.*/
-int CTCPSSLServer::Receive(const SSLSocket& ClientSocket, 
+int CTCPSSLServer::Receive(const SSLSocket& ClientSocket,
                            char* pData,
                            const size_t uSize,
                            bool bReadFully /*= true*/) const
@@ -193,15 +213,20 @@ bool CTCPSSLServer::Send(const SSLSocket& ClientSocket, const char* pData, const
 
 bool CTCPSSLServer::Send(const SSLSocket& ClientSocket, const std::string& strData) const
 {
-   Send(ClientSocket, strData.c_str(), strData.length());
+   bool ret;
 
-   return true;
+   ret = Send(ClientSocket, strData.c_str(), strData.length());
+
+   return ret;
 }
 
 bool CTCPSSLServer::Send(const SSLSocket& ClientSocket, const std::vector<char>& Data) const
 {
-   Send(ClientSocket, Data.data(), Data.size());
-   return true;
+   bool ret;
+
+   ret = Send(ClientSocket, Data.data(), Data.size());
+
+   return ret;
 }
 
 bool CTCPSSLServer::Disconnect(SSLSocket& ClientSocket) const
@@ -209,9 +234,7 @@ bool CTCPSSLServer::Disconnect(SSLSocket& ClientSocket) const
    // send close_notify message to notify peer of the SSL closure.
    ShutdownSSL(ClientSocket);
 
-   m_TCPServer.Disconnect(ClientSocket.m_SockFd);
-
-   return true;
+   return m_TCPServer.Disconnect(ClientSocket.m_SockFd);
 }
 
 CTCPSSLServer::~CTCPSSLServer()
