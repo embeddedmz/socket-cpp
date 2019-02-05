@@ -68,6 +68,8 @@ file(GLOB_RECURSE socket_source_files ../Socket/*)
 #Output Setup
 add_executable(test_socket Tests.cpp test_utils.cpp ${socket_source_files})
 
+target_include_directories(test_socket PRIVATE ${OPENSSL_INCLUDE_DIR})
+
 #Link setup
 target_link_libraries(test_socket ${GTEST_LIBRARIES} pthread ${OPENSSL_LIBRARIES})
 
@@ -86,6 +88,8 @@ link_directories(${CMAKE_BINARY_DIR}/lib)
 
 #Output Setup
 add_executable(test_socket Tests.cpp test_utils.cpp)
+
+target_include_directories(test_socket PRIVATE ${OPENSSL_INCLUDE_DIR})
 
 #Link setup
 if(NOT MSVC)

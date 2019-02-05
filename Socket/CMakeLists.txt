@@ -16,4 +16,6 @@ endif()
 file(GLOB_RECURSE source_files ./*)
 add_library(socket STATIC ${source_files})
 
+target_include_directories(socket PRIVATE ${OPENSSL_INCLUDE_DIR})
+
 ENDIF()
