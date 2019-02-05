@@ -144,7 +144,11 @@ Also make sure you have Google Test installed and OpenSSL updated to the lastest
 
 This tutorial will help you installing properly Google Test on Ubuntu: https://www.eriksmistad.no/getting-started-with-google-test-on-ubuntu/
 
-If you work under Centos7 this tutorial may help you to install the latest version of OpenSSL : https://blacksaildivision.com/how-to-install-openssl-on-centos
+If you work under Centos7 or another Linux distribution that has an old version of OpenSSL, this tutorial may help you to install the latest version of OpenSSL : https://blacksaildivision.com/how-to-install-openssl-on-centos in /usr/local/openssl. With the GUI version of CMake, click on "Advanced" and change these OpenSSL entries (or you can use the command line if you're comfortable with :
+
+OPENSSL_CRYPTO_LIBRARY : /usr/local/openssl/lib/libcrypto.so (.a will cause a link problem...)
+OPENSSL_INCLUDE_DIR    : /usr/local/openssl/include
+OPENSSL_SSL_LIBRARY    : /usr/local/openssl/lib/libssl.so (or .a if you want)
 
 The CMake script located in the tree will produce Makefiles for the creation of the static library and for the unit tests program.
 
