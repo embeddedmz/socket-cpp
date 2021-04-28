@@ -92,8 +92,6 @@ public:
                           const SettingsFlag eSettings = ALL_FLAGS);
    virtual ~ASecureSocket() = 0;
 
-   inline static int GetSSLSocketCount() { return s_iSecureSocketCount; }
-
    /*
     * For the SSL server:
     * Server's own certificate (mandatory)
@@ -133,11 +131,25 @@ protected:
    std::string          m_strSSLKeyFile;
    //std::string          m_strSSLKeyPwd;
 
-   // static/class members
-   volatile static int   s_iSecureSocketCount;  // Count of the actual secure socket sessions
-   static std::mutex     s_mtxSecureCount;      // mutex used to sync OpenSSL API global operations
-
 private:
+   friend class SecureSocketGlobalInitializer;
+   class SecureSocketGlobalInitializer {
+   public:
+      static SecureSocketGlobalInitializer& instance();
+
+      SecureSocketGlobalInitializer(SecureSocketGlobalInitializer const&) = delete;
+      SecureSocketGlobalInitializer(SecureSocketGlobalInitializer&&) = delete;
+
+      SecureSocketGlobalInitializer& operator=(SecureSocketGlobalInitializer const&) = delete;
+      SecureSocketGlobalInitializer& operator=(SecureSocketGlobalInitializer&&) = delete;
+
+      ~SecureSocketGlobalInitializer();
+
+   private:
+       SecureSocketGlobalInitializer();
+   };
+   SecureSocketGlobalInitializer& m_globalInitializer;
+
    static void InitializeSSL();
    static void DestroySSL();
 };

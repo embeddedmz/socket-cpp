@@ -8,15 +8,29 @@
 
 #include "SecureSocket.h"
 
+#include <iostream>
+
 #ifndef LINUX
 // to avoid link problems in prod/test program
 // Update : with the newer versions of OpenSSL, there's no need to include it
 //#include <openssl/applink.c>
 #endif
 
-// Static members initialization
-volatile int    ASecureSocket::s_iSecureSocketCount = 0;
-std::mutex      ASecureSocket::s_mtxSecureCount;
+ASecureSocket::SecureSocketGlobalInitializer& ASecureSocket::SecureSocketGlobalInitializer::instance()
+{
+   static SecureSocketGlobalInitializer inst{};
+   return inst;
+}
+
+ASecureSocket::SecureSocketGlobalInitializer::SecureSocketGlobalInitializer()
+{
+   InitializeSSL();
+}
+
+ASecureSocket::SecureSocketGlobalInitializer::~SecureSocketGlobalInitializer()
+{
+   DestroySSL();
+}
 
 /**
 * @brief constructor of the Secure Socket
@@ -29,15 +43,9 @@ ASecureSocket::ASecureSocket(const LogFnCallback& oLogger,
                              const OpenSSLProtocol eSSLVersion,
                              const SettingsFlag eSettings /*= ALL_FLAGS*/) :
    ASocket(oLogger, eSettings),
-   m_eOpenSSLProtocol(eSSLVersion)
+   m_eOpenSSLProtocol(eSSLVersion),
+   m_globalInitializer(SecureSocketGlobalInitializer::instance())
 {
-   s_mtxSecureCount.lock();
-   if (s_iSecureSocketCount++ == 0)
-   {
-      // Initialize OpenSSL
-      InitializeSSL();
-   }
-   s_mtxSecureCount.unlock();
 }
 
 /**
@@ -48,12 +56,6 @@ ASecureSocket::ASecureSocket(const LogFnCallback& oLogger,
 */
 ASecureSocket::~ASecureSocket()
 {
-   s_mtxSecureCount.lock();
-   if (--s_iSecureSocketCount <= 0)
-   {
-      DestroySSL();
-   }
-   s_mtxSecureCount.unlock();
 }
 
 void ASecureSocket::SetUpCtxClient(SSLSocket& Socket)

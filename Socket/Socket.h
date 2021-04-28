@@ -13,7 +13,6 @@
 #include <exception>
 #include <functional>
 #include <memory>
-#include <mutex>
 #include <stdarg.h>       // va_start, etc.
 #include <stdexcept>
 
@@ -69,8 +68,6 @@ public:
                     const SettingsFlag eSettings = ALL_FLAGS);
    virtual ~ASocket() = 0;
 
-   inline static int GetSocketCount() { return s_iSocketCount; }
-
    static int SelectSockets(const Socket* pSocketsToSelect, const size_t count,
                             const size_t msec, size_t& selectedIndex);
 
@@ -78,10 +75,10 @@ public:
 
    static struct timeval TimevalFromMsec(unsigned int time_msec);
 
-protected:
    // String Helpers
    static std::string StringFormat(const std::string strFormat, ...);
 
+protected:
    // Log printer callback
    /*mutable*/const LogFnCallback         m_oLog;
 
@@ -92,8 +89,23 @@ protected:
    #endif
 
 private:
-   volatile static int   s_iSocketCount;  // Count of the actual socket sessions
-   static std::mutex     s_mtxCount;      // mutex used to sync API global operations
+   friend class SocketGlobalInitializer;
+   class SocketGlobalInitializer {
+   public:
+      static SocketGlobalInitializer& instance();
+
+      SocketGlobalInitializer(SocketGlobalInitializer const&) = delete;
+      SocketGlobalInitializer(SocketGlobalInitializer&&) = delete;
+
+      SocketGlobalInitializer& operator=(SocketGlobalInitializer const&) = delete;
+      SocketGlobalInitializer& operator=(SocketGlobalInitializer&&) = delete;
+
+      ~SocketGlobalInitializer();
+
+   private:
+      SocketGlobalInitializer();
+   };
+   SocketGlobalInitializer& m_globalInitializer;
 };
 
 class EResolveError : public std::logic_error
