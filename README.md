@@ -15,6 +15,8 @@ Compilation has been tested with:
 - GCC 5.4.0 (GNU/Linux Ubuntu 16.04 LTS)
 - Microsoft Visual Studio 2015 (Windows 10)
 
+Windows Users : vcpkg (Microsoft C++ Library Manager) can be used to easily install OpenSSL and generate the Visual Studio solution with CMake. With vcpkg, no need to manually copy the DLL in the output directory, vcpkg handles all that ! Look at "Building under Windows via Visual Studio" section, for instructions.
+
 ## Usage
 Create a server or client object and provide to its constructor a callable object (for log printing)
 having this signature :
@@ -171,6 +173,36 @@ To directly run the unit test binary, you must indicate the path of the INI conf
 ```
 
 ### Building under Windows via Visual Studio
+
+1. New Procedure (with vcpkg) :
+
+Install [vcpkg](https://github.com/microsoft/vcpkg) then install OpenSSL (use 'x86-windows' for the 32-bit version) :
+```Shell
+.\vcpkg install openssl:x64-windows
+```
+
+If you have a french Visual Studio version, don't forget to install the english language pack (vcpkg will tell you this anyway).
+
+Download and install the latest version of CMake : https://cmake.org/download/ (e.g. Windows win64-x64 Installer)
+
+Open CMake (cmake-gui)
+
+In "Where is the source code", put the socket-cpp path (e.g. C:/Users/Amine/Documents/Work/PROJECTS/GitHub/socket-cpp), where the main CMakeLists.txt file exist.
+
+In "Where to build binaries", paste the directory where you want to build the project (e.g. C:/Users/Amine/Documents/Work/PROJECTS/GitHub/socket_build)
+
+Click on "Configure".
+
+Select your Visual Studio version (if it isn't already set).
+In "Optional platform for generator", you can leave it empty (x64 by default) or choose another value.
+
+Click on the radio button "Specify toolchain file for cross-compiling, then hit the "Next" button.
+
+In "Specify the toolchain file", browse to vcpkg toolchain file (vcpkg/scripts/buildsystems/vcpkg.cmake) and select it.
+
+Press "Finish", wait until CMake configures the project then hit "Generate" to create the Visual Studio solution (library and unit test binary).
+
+2. Old Procedure (without vcpkg) :
 
 First of all, you can download and install OpenSSL : https://slproweb.com/products/Win32OpenSSL.html (32 and 64 bits).
 
