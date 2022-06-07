@@ -33,9 +33,12 @@ public:
    bool Listen(SSLSocket& ClientSocket, size_t msec = ACCEPT_WAIT_INF_DELAY);
 
    bool SetRcvTimeout(SSLSocket& ClientSocket, unsigned int msec_timeout);
-   bool SetRcvTimeout(SSLSocket& ClientSocket, struct timeval timeout);
    bool SetSndTimeout(SSLSocket& ClientSocket, unsigned int timeout);
+   
+#ifndef WINDOWS
+   bool SetRcvTimeout(SSLSocket& ClientSocket, struct timeval timeout);
    bool SetSndTimeout(SSLSocket& ClientSocket, struct timeval timeout);
+#endif
 
    bool HasPending(const SSLSocket& ClientSocket);
    int PendingBytes(const SSLSocket& ClientSocket);

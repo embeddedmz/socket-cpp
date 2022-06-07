@@ -20,11 +20,27 @@ CTCPClient::CTCPClient(const LogFnCallback oLogger,
 
 // Method for setting receive timeout. Can be called after Connect
 bool CTCPClient::SetRcvTimeout(unsigned int msec_timeout) {
+#ifndef WINDOWS
 	struct timeval t = ASocket::TimevalFromMsec(msec_timeout);
 
 	return this->SetRcvTimeout(t);
+#else
+    int iErr;
+
+    // it's expecting an int but it doesn't matter...
+    iErr = setsockopt(m_ConnectSocket, SOL_SOCKET, SO_RCVTIMEO, (char*)&msec_timeout, sizeof(struct timeval));
+    if (iErr < 0) {
+        if (m_eSettingsFlags & ENABLE_LOG)
+            m_oLog("[TCPServer][Error] CTCPClient::SetRcvTimeout : Socket error in SO_RCVTIMEO call to setsockopt.");
+
+        return false;
+    }
+
+    return true;
+#endif
 }
 
+#ifndef WINDOWS
 bool CTCPClient::SetRcvTimeout(struct timeval timeout) {
 	int iErr;
 
@@ -33,21 +49,36 @@ bool CTCPClient::SetRcvTimeout(struct timeval timeout) {
 		if (m_eSettingsFlags & ENABLE_LOG)
 			m_oLog("[TCPServer][Error] CTCPClient::SetRcvTimeout : Socket error in SO_RCVTIMEO call to setsockopt.");
 
-		Disconnect();
-
 		return false;
 	}
 
 	return true;
 }
+#endif
 
 // Method for setting send timeout. Can be called after Connect
 bool CTCPClient::SetSndTimeout(unsigned int msec_timeout) {
+#ifndef WINDOWS
 	struct timeval t = ASocket::TimevalFromMsec(msec_timeout);
 
 	return this->SetSndTimeout(t);
+#else
+    int iErr;
+
+    // it's expecting an int but it doesn't matter...
+    iErr = setsockopt(m_ConnectSocket, SOL_SOCKET, SO_SNDTIMEO, (char*)&msec_timeout, sizeof(struct timeval));
+    if (iErr < 0) {
+        if (m_eSettingsFlags & ENABLE_LOG)
+            m_oLog("[TCPServer][Error] CTCPClient::SetSndTimeout : Socket error in SO_SNDTIMEO call to setsockopt.");
+
+        return false;
+    }
+
+    return true;
+#endif
 }
 
+#ifndef WINDOWS
 bool CTCPClient::SetSndTimeout(struct timeval timeout) {
 	int iErr;
 
@@ -56,13 +87,12 @@ bool CTCPClient::SetSndTimeout(struct timeval timeout) {
 		if (m_eSettingsFlags & ENABLE_LOG)
 			m_oLog("[TCPServer][Error] CTCPClient::SetSndTimeout : Socket error in SO_SNDTIMEO call to setsockopt.");
 
-		Disconnect();
-
 		return false;
 	}
 
 	return true;
 }
+#endif
 
 // Connexion au serveur
 bool CTCPClient::Connect(const std::string& strServer, const std::string& strPort)

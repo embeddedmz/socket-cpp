@@ -215,7 +215,250 @@ TEST_F(TCPTest, TestLoopbackTenMegaBytes)
       std::cout << "TCP tests are disabled !" << std::endl;
 }
 
-TEST_F(TCPTest, TestLoopbackWithSelect)
+TEST_F(TCPTest, TestPollSocketForReceivedBytes)
+{
+    if (TCP_TEST_ENABLED)
+    {
+        srand(static_cast<unsigned>(time(nullptr)));
+
+        const size_t tenMeg = 10 * 1024 * 1024;
+        std::vector<char> TenMbData(tenMeg);
+        std::vector<char> RcvBuffer(tenMeg);
+        std::generate(TenMbData.begin(), TenMbData.end(), [] { return (std::rand() % 256); });
+
+        ASocket::Socket ConnectedClient;
+
+        ASSERT_NO_THROW(m_pTCPServer.reset(new CTCPServer(PRINT_LOG, TCP_SERVER_PORT)));
+
+        // Not always starts a new thread, std::launch::async must be passed to force it.
+        std::future<bool> futListen = std::async(std::launch::async,
+            [&] { return m_pTCPServer->Listen(ConnectedClient); });
+
+        // give time to let the server object reach the accept instruction.
+        SleepMs(500);
+
+        ASSERT_TRUE(m_pTCPClient->Connect("localhost", "6669"));
+        ASSERT_TRUE(futListen.get());
+
+        auto ClientReceive = [&]() -> int {
+            const int chunkSize = 1024 * 1024; // 1 MB
+            int readBytes = 0;
+            int timeoutCount = 0;
+
+            while (timeoutCount < 20)
+            {
+                int ret = ASocket::SelectSocket(m_pTCPClient->GetSocketDescriptor(), 300);
+
+                if (ret > 0)
+                {
+                    int readCount = m_pTCPClient->Receive(RcvBuffer.data() + readBytes, chunkSize);
+
+                    if (readCount == 0)
+                        break;
+
+                    readBytes += readCount;
+                }
+                else
+                {
+                    timeoutCount += 1;
+                }
+
+                if (readBytes >= tenMeg)
+                    break;
+            }
+
+            return readBytes;
+        };
+
+        // launch the receive in another thread to prevent server from
+        // hanging when sending "many" bytes.
+        std::future<int> futClientReceive = std::async(std::launch::async, ClientReceive);
+
+        ASSERT_FALSE(ConnectedClient == INVALID_SOCKET);
+
+        // server -> client
+        EXPECT_TRUE(m_pTCPServer->Send(ConnectedClient, TenMbData));
+
+        int nRcvdBytes = futClientReceive.get();
+
+        EXPECT_EQ(nRcvdBytes, tenMeg);
+        EXPECT_TRUE(std::equal(TenMbData.begin(), TenMbData.end(), RcvBuffer.begin()));
+
+        std::fill(RcvBuffer.begin(), RcvBuffer.end(), 0);
+
+        // client -> server
+        auto ServerReceive = [&]() -> int {
+            const int chunkSize = 1024 * 1024; // 1 MB
+            int readBytes = 0;
+            int timeoutCount = 0;
+
+            while (timeoutCount < 20)
+            {
+                int ret = ASocket::SelectSocket(ConnectedClient, 300);
+
+                if (ret > 0)
+                {
+                    int readCount = m_pTCPServer->Receive(ConnectedClient, RcvBuffer.data() + readBytes, chunkSize);
+
+                    if (readCount == 0)
+                        break;
+
+                    readBytes += readCount;
+                }
+                else
+                {
+                    timeoutCount += 1;
+                }
+
+                if (readBytes >= tenMeg)
+                    break;
+            }
+
+            return readBytes;
+        };
+        std::future<int> futServerReceive = std::async(std::launch::async, ServerReceive);
+
+        EXPECT_TRUE(m_pTCPClient->Send(TenMbData));
+        nRcvdBytes = futServerReceive.get();
+
+        EXPECT_EQ(nRcvdBytes, tenMeg);
+        EXPECT_TRUE(std::equal(TenMbData.begin(), TenMbData.end(), RcvBuffer.begin()));
+
+        // disconnect
+        EXPECT_TRUE(m_pTCPClient->Disconnect());
+    }
+    else
+        std::cout << "TCP tests are disabled !" << std::endl;
+}
+
+TEST_F(TCPTest, TestPollSocketTimeout)
+{
+    if (TCP_TEST_ENABLED)
+    {
+        ASocket::Socket ConnectedClient;
+
+        ASSERT_NO_THROW(m_pTCPServer.reset(new CTCPServer(PRINT_LOG, TCP_SERVER_PORT)));
+
+        // Not always starts a new thread, std::launch::async must be passed to force it.
+        std::future<bool> futListen = std::async(std::launch::async,
+            [&] { return m_pTCPServer->Listen(ConnectedClient); });
+
+        // give time to let the server object reach the accept instruction.
+        SleepMs(100);
+
+        ASSERT_TRUE(m_pTCPClient->Connect("localhost", "6669"));
+        ASSERT_TRUE(futListen.get());
+
+        auto ClientReceive = [&](){
+            int timeoutCount = 0;
+
+            while (timeoutCount < 10)
+            {
+                int ret = ASocket::SelectSocket(m_pTCPClient->GetSocketDescriptor(), 50);
+                ASSERT_EQ(ret, 0);
+                timeoutCount += 1;
+            }
+        };
+
+        // launch the receive in another thread to prevent server from
+        // hanging when sending "many" bytes.
+        std::future<void> futClientReceive = std::async(std::launch::async, ClientReceive);
+
+        ASSERT_FALSE(ConnectedClient == INVALID_SOCKET);
+
+        // do not send anything from the server to the client
+
+        futClientReceive.get();
+
+        // client -> server
+        auto ServerReceive = [&](){
+            int timeoutCount = 0;
+
+            while (timeoutCount < 10)
+            {
+                int ret = ASocket::SelectSocket(ConnectedClient, 50);
+                ASSERT_EQ(ret, 0);
+                timeoutCount += 1;
+            }
+        };
+        std::future<void> futServerReceive = std::async(std::launch::async, ServerReceive);
+
+        // do not send anything from the client to the server
+        futServerReceive.get();
+
+        // disconnect
+        EXPECT_TRUE(m_pTCPClient->Disconnect());
+    }
+    else
+        std::cout << "TCP tests are disabled !" << std::endl;
+}
+
+TEST_F(TCPTest, TestReceivingTimeout)
+{
+    if (TCP_TEST_ENABLED)
+    {
+        srand(static_cast<unsigned>(time(nullptr)));
+
+        const size_t tenMeg = 10 * 1024 * 1024;
+        std::vector<char> TenMbData(tenMeg);
+        std::vector<char> RcvBuffer(tenMeg);
+        std::generate(TenMbData.begin(), TenMbData.end(), [] { return (std::rand() % 256); });
+
+        ASocket::Socket ConnectedClient;
+
+        ASSERT_NO_THROW(m_pTCPServer.reset(new CTCPServer(PRINT_LOG, TCP_SERVER_PORT)));
+
+        // Not always starts a new thread, std::launch::async must be passed to force it.
+        std::future<bool> futListen = std::async(std::launch::async,
+            [&] { return m_pTCPServer->Listen(ConnectedClient); });
+
+        // give time to let the server object reach the accept instruction.
+        SleepMs(200);
+
+        ASSERT_TRUE(m_pTCPClient->Connect("localhost", "6669"));
+        ASSERT_TRUE(futListen.get());
+
+        ASSERT_TRUE(m_pTCPClient->SetRcvTimeout(250));
+
+        auto ClientReceive = [&]() {
+            return m_pTCPClient->Receive(RcvBuffer.data(), tenMeg);
+        };
+
+        // launch the receive in another thread to prevent server from
+        // hanging when sending "many" bytes.
+        std::future<int> futClientReceive = std::async(std::launch::async, ClientReceive);
+
+        ASSERT_FALSE(ConnectedClient == INVALID_SOCKET);
+
+        // server -> client
+        //EXPECT_TRUE(m_pTCPServer->Send(ConnectedClient, TenMbData)); // send nothing
+
+        int nRcvdBytes = futClientReceive.get();
+
+        EXPECT_EQ(nRcvdBytes, -1);
+
+        m_pTCPServer->SetRcvTimeout(ConnectedClient, 250);
+
+        // client -> server
+        auto ServerReceive = [&]() {
+            return m_pTCPServer->Receive(ConnectedClient, RcvBuffer.data(), tenMeg);
+        };
+        std::future<int> futServerReceive = std::async(std::launch::async, ServerReceive);
+
+        //EXPECT_TRUE(m_pTCPClient->Send(TenMbData));
+        nRcvdBytes = futServerReceive.get();
+
+        EXPECT_EQ(nRcvdBytes, -1);
+
+        // disconnect
+        EXPECT_TRUE(m_pTCPClient->Disconnect());
+        //EXPECT_TRUE(m_pTCPServer->Disconnect(ConnectedClient)); // OK tested
+    }
+    else
+        std::cout << "TCP tests are disabled !" << std::endl;
+}
+
+TEST_F(TCPTest, TestSuccessfulListenWithTimeout)
 {
    if (TCP_TEST_ENABLED)
    {
@@ -247,7 +490,7 @@ TEST_F(TCPTest, TestLoopbackWithSelect)
 
       // client side
       // give time to let the server object reach the accept instruction.
-      SleepMs(500);
+      SleepMs(100);
 
       ASSERT_TRUE(m_pTCPClient->Connect("localhost", "6669"));
       #ifdef WINDOWS
@@ -281,7 +524,7 @@ TEST_F(TCPTest, TestLoopbackWithSelect)
       std::cout << "TCP tests are disabled !" << std::endl;
 }
 
-TEST_F(TCPTest, TestLoopbackWithSelectFailure)
+TEST_F(TCPTest, TestListenFailureWithTimeout)
 {
    if (TCP_TEST_ENABLED)
    {

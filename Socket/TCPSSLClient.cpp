@@ -20,17 +20,19 @@ bool CTCPSSLClient::SetRcvTimeout(unsigned int msec_timeout){
    return m_TCPClient.SetRcvTimeout(msec_timeout);
 }
 
-bool CTCPSSLClient::SetRcvTimeout(struct timeval timeout){
-   return m_TCPClient.SetRcvTimeout(timeout);
-}
-
 bool CTCPSSLClient::SetSndTimeout(unsigned int msec_timeout){
    return m_TCPClient.SetSndTimeout(msec_timeout);
+}
+
+#ifndef WINDOWS
+bool CTCPSSLClient::SetRcvTimeout(struct timeval timeout) {
+    return m_TCPClient.SetRcvTimeout(timeout);
 }
 
 bool CTCPSSLClient::SetSndTimeout(struct timeval timeout){
    return m_TCPClient.SetSndTimeout(timeout);
 }
+#endif
 
 // Connexion au serveur
 bool CTCPSSLClient::Connect(const std::string& strServer, const std::string& strPort)

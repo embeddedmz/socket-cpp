@@ -101,6 +101,32 @@ m_pTCPClient->Disconnect();
 m_pTCPServer->Disconnect(ConnectedClient);
 ```
 
+A client socket can be polled to ensure that a receive operation won't block indefinitely if a timeout has not been defined :
+
+```cpp
+// client
+int ret = ASocket::SelectSocket(tcpClient->GetSocketDescriptor(), 300); // poll for 300 ms
+if (ret > 0)
+{
+    int readCount = m_pTCPClient->Receive(RcvBuffer.data() + readBytes, chunkSize);
+    
+    //...
+}
+
+// client socket managed by a server
+int ret = ASocket::SelectSocket(ConnectedClient, 50);
+```
+
+Or you can define a recevive (or send) timeout value :
+
+```cpp
+ASSERT_TRUE(m_pTCPClient->SetRcvTimeout(250));
+
+m_pTCPServer->SetRcvTimeout(ConnectedClient, 250);
+
+// Set timeout value to zero to disable timeout
+```
+
 Before using SSL/TLS secured classes, compile both library and the test program with the preprocessor macro OPENSSL.
 If you don't want to compile secure classes, you can indicate that to CMake when generating a makefile or Visual Studio solutions, by setting SOCKET_CPP_BUILD_WITHOUT_SECURE_CLASSES=TRUE (under Windows, in CMake-GUI, add the entry, select "BOOL" and check "Value") :
 

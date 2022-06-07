@@ -22,17 +22,19 @@ bool CTCPSSLServer::SetRcvTimeout(SSLSocket& ClientSocket, unsigned int msec_tim
    return m_TCPServer.SetRcvTimeout(ClientSocket.m_SockFd, msec_timeout);
 }
 
-bool CTCPSSLServer::SetRcvTimeout(SSLSocket& ClientSocket, struct timeval timeout){
-   return m_TCPServer.SetRcvTimeout(ClientSocket.m_SockFd, timeout);
-}
-
 bool CTCPSSLServer::SetSndTimeout(SSLSocket& ClientSocket, unsigned int msec_timeout){
    return m_TCPServer.SetSndTimeout(ClientSocket.m_SockFd, msec_timeout);
+}
+
+#ifndef WINDOWS
+bool CTCPSSLServer::SetRcvTimeout(SSLSocket& ClientSocket, struct timeval timeout) {
+    return m_TCPServer.SetRcvTimeout(ClientSocket.m_SockFd, timeout);
 }
 
 bool CTCPSSLServer::SetSndTimeout(SSLSocket& ClientSocket, struct timeval timeout){
    return m_TCPServer.SetSndTimeout(ClientSocket.m_SockFd, timeout);
 }
+#endif
 
 // returns the socket of the accepted client
 bool CTCPSSLServer::Listen(SSLSocket& ClientSocket, size_t msec /*= ACCEPT_WAIT_INF_DELAY*/)

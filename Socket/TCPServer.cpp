@@ -63,32 +63,59 @@ CTCPServer::CTCPServer(const LogFnCallback oLogger,
 
 // Method for setting receive timeout. Can be called after Listen, using the previously created ClientSocket
 bool CTCPServer::SetRcvTimeout(ASocket::Socket& ClientSocket, unsigned int msec_timeout) {
+#ifndef WINDOWS
 	struct timeval t = ASocket::TimevalFromMsec(msec_timeout);
 
 	return this->SetRcvTimeout(ClientSocket, t);
-}
-
-bool CTCPServer::SetRcvTimeout(ASocket::Socket& ClientSocket, struct timeval Timeout) {
+#else
 	int iErr;
 
-	iErr = setsockopt(ClientSocket, SOL_SOCKET, SO_RCVTIMEO, (char*) &Timeout, sizeof(struct timeval));
+	iErr = setsockopt(ClientSocket, SOL_SOCKET, SO_RCVTIMEO, (char*)&msec_timeout, sizeof(struct timeval));
 	if (iErr < 0) {
 		if (m_eSettingsFlags & ENABLE_LOG)
 			m_oLog("[TCPServer][Error] CTCPServer::SetRcvTimeout : Socket error in SO_RCVTIMEO call to setsockopt.");
-
-		Disconnect(ClientSocket);
 
 		return false;
 	}
 
 	return true;
+#endif
 }
 
 // Method for setting send timeout. Can be called after Listen, using the previously created ClientSocket
 bool CTCPServer::SetSndTimeout(ASocket::Socket& ClientSocket, unsigned int msec_timeout) {
+#ifndef WINDOWS
 	struct timeval t = ASocket::TimevalFromMsec(msec_timeout);
 
 	return this->SetRcvTimeout(ClientSocket, t);
+#else
+	int iErr;
+
+	iErr = setsockopt(ClientSocket, SOL_SOCKET, SO_SNDTIMEO, (char*)&msec_timeout, sizeof(struct timeval));
+	if (iErr < 0) {
+		if (m_eSettingsFlags & ENABLE_LOG)
+			m_oLog("[TCPServer][Error] CTCPServer::SetSndTimeout : Socket error in SO_SNDTIMEO call to setsockopt.");
+
+		return false;
+	}
+
+	return true;
+#endif
+}
+
+#ifndef WINDOWS
+bool CTCPServer::SetRcvTimeout(ASocket::Socket& ClientSocket, struct timeval Timeout) {
+	int iErr;
+
+	iErr = setsockopt(ClientSocket, SOL_SOCKET, SO_RCVTIMEO, (char*)&Timeout, sizeof(struct timeval));
+	if (iErr < 0) {
+		if (m_eSettingsFlags & ENABLE_LOG)
+			m_oLog("[TCPServer][Error] CTCPServer::SetRcvTimeout : Socket error in SO_RCVTIMEO call to setsockopt.");
+
+		return false;
+	}
+
+	return true;
 }
 
 bool CTCPServer::SetSndTimeout(ASocket::Socket& ClientSocket, struct timeval Timeout) {
@@ -99,13 +126,12 @@ bool CTCPServer::SetSndTimeout(ASocket::Socket& ClientSocket, struct timeval Tim
 		if (m_eSettingsFlags & ENABLE_LOG)
 			m_oLog("[TCPServer][Error] CTCPServer::SetSndTimeout : Socket error in SO_SNDTIMEO call to setsockopt.");
 
-		Disconnect(ClientSocket);
-
 		return false;
 	}
 
 	return true;
 }
+#endif
 
 // returns the socket of the accepted client
 // maxRcvTime and maxSendTime define timeouts in µs for receiving and sending over the socket. Using a negative value

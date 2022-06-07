@@ -57,9 +57,12 @@ public:
    bool Disconnect(const Socket ClientSocket) const;
 
    bool SetRcvTimeout(ASocket::Socket& ClientSocket, unsigned int msec_timeout);
-   bool SetRcvTimeout(ASocket::Socket& ClientSocket, struct timeval Timeout);
    bool SetSndTimeout(ASocket::Socket& ClientSocket, unsigned int msec_timeout);
+   
+#ifndef  WINDOWS
+   bool SetRcvTimeout(ASocket::Socket& ClientSocket, struct timeval Timeout);
    bool SetSndTimeout(ASocket::Socket& ClientSocket, struct timeval Timeout);
+#endif
 
 protected:
    Socket m_ListenSocket;

@@ -71,7 +71,7 @@ public:
    static int SelectSockets(const Socket* pSocketsToSelect, const size_t count,
                             const size_t msec, size_t& selectedIndex);
 
-   int SelectSocket(const Socket sd, const size_t msec);
+   static int SelectSocket(const Socket sd, const size_t msec);
 
    static struct timeval TimevalFromMsec(unsigned int time_msec);
 
