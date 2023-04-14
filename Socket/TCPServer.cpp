@@ -373,7 +373,7 @@ int CTCPServer::Receive(const CTCPServer::Socket ClientSocket,
 						const size_t uSize,
 						bool bReadFully /*= true*/) const {
 	if (ClientSocket < 0 || !pData || !uSize)
-		return false;
+		return -1;
 
 #ifdef WINDOWS
 	int tries = 0;

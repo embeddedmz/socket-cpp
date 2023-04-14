@@ -333,7 +333,7 @@ bool CTCPClient::Send(const std::vector<char>& Data) const
 int CTCPClient::Receive(char* pData, const size_t uSize, bool bReadFully /*= true*/) const
 {
    if (!pData || !uSize)
-      return false;
+      return -2;
 
    if (m_eStatus != CONNECTED)
    {
